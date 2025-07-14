@@ -1,0 +1,33 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3310/read-fast
+    username: root
+    password: 1234
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    properties:
+      hibernate:
+        format_sql: true
+    hibernate:
+      ddl-auto: update
+
+cors:
+  allowed-origins:
+    - "http://localhost:5173"
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - Authorization
+    - Cache-Control
+    - Content-Type
+  exposed-headers:
+    - Authorization
+    - Content-Disposition
+  allow-credentials: true
+  max-age: 3600
