@@ -6,5 +6,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface AuthQueryRepository {
-    Page<AuthLog> search(AuthSearchCondition condition, Pageable pageable);
+    Page<AuthLog> searchV1(AuthSearchCondition condition, Pageable pageable);
+    Page<AuthLog> searchV2(AuthSearchCondition condition, Pageable pageable);
 }

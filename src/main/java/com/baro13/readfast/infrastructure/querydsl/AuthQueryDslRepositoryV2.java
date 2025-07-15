@@ -18,30 +18,21 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class AuthQueryDslRepository {
+public class AuthQueryDslRepositoryV2 {
     private final JPAQueryFactory queryFactory;
 
     public Page<AuthLog> search(AuthSearchCondition condition, Pageable pageable){
         List<AuthLog> content = getContent(condition, pageable);
-        Long count = getCount(condition);
-        return new PageImpl<>(content, pageable, count);
+        return new PageImpl<>(content, pageable, -1);
     }
 
     public List<AuthLog> getContent(AuthSearchCondition condition, Pageable pageable) {
         return queryFactory.selectFrom(authLogEntity)
             .where(getCondition(condition))
-            .offset(pageable.getOffset())
             .limit(pageable.getPageSize())
+            .orderBy(authLogEntity.date.desc(), authLogEntity.id.desc())
             .fetch()
             .stream().map(AuthLogMapper::toDomain).toList();
-    }
-
-    private Long getCount(AuthSearchCondition condition) {
-        return queryFactory
-            .select(authLogEntity.count())
-            .from(authLogEntity)
-            .where(getCondition(condition))
-            .fetchOne();
     }
 
     private BooleanBuilder getCondition(AuthSearchCondition condition) {
@@ -52,6 +43,7 @@ public class AuthQueryDslRepository {
         builder.and(deviceEq(condition.getDevice()));
         builder.and(userIdEq(condition.getUserId()));
         builder.and(endpointEq(condition.getEndpoint()));
+        builder.and(cursorBefore(condition.getCursorDate() ,condition.getCursorId()));
         return builder;
     }
 
@@ -72,5 +64,10 @@ public class AuthQueryDslRepository {
     }
     private BooleanExpression endpointEq(String endpoint){
         return endpoint == null ? null : authLogEntity.endpoint.eq(endpoint);
+    }
+    private BooleanExpression cursorBefore(Instant cursorDate, Long cursorId) {
+        if (cursorDate == null || cursorId == null) return null;
+        return authLogEntity.date.lt(cursorDate)
+            .or(authLogEntity.date.eq(cursorDate).and(authLogEntity.id.lt(cursorId)));
     }
 }

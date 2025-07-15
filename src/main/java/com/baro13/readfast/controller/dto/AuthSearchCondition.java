@@ -16,9 +16,29 @@ public class AuthSearchCondition {
     private String result;
     private String endpoint;
 
-    private Integer page = 0;
-    private Integer size = 10;
+    private Integer page;
+    private Integer size;
 
-    private String sortBy = "date";
-    private String direction = "desc";
+    private String sortBy;
+    private String direction;
+
+    // V2 추가
+    private Long cursorId;
+    private Instant cursorDate;
+
+    public int getPage() {
+        return page == null ? 0 : page;
+    }
+
+    public int getSize() {
+        return size == null ? 10 : size;
+    }
+
+    public String getSortBy() {
+        return sortBy == null ? "date" : sortBy;
+    }
+
+    public String getDirection() {
+        return direction == null ? "desc" : direction;
+    }
 }
