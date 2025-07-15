@@ -14,14 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/auth")
-public class AuthQueryController {
+@RequestMapping("/api/v2/auth")
+public class AuthQueryControllerV2 {
 
     private final AuthQueryService authQueryService;
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse> search(AuthSearchCondition condition) {
-        Page<AuthLog> response = authQueryService.search(condition);
+        Page<AuthLog> response = authQueryService.searchV2(condition);
         PageResponse<AuthLog> data = PageResponse.from(response);
         return ApiResponse.ok(data);
     }

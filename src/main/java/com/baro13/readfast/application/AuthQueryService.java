@@ -18,10 +18,14 @@ import org.springframework.stereotype.Service;
 public class AuthQueryService {
     private final AuthQueryRepository authQueryRepository;
 
-    public Page<AuthLog> search(AuthSearchCondition condition) {
+    public Page<AuthLog> searchV1(AuthSearchCondition condition) {
         Pageable pageable = getPageable(condition);
-        log.info("인증 로그 검색 조건: {}", condition);
-        return authQueryRepository.search(condition, pageable);
+        return authQueryRepository.searchV1(condition, pageable);
+    }
+
+    public Page<AuthLog> searchV2(AuthSearchCondition condition) {
+        Pageable pageable = getPageable(condition);
+        return authQueryRepository.searchV2(condition,pageable);
     }
 
     private Pageable getPageable(AuthSearchCondition condition) {
