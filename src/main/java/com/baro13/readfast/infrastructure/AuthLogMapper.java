@@ -2,12 +2,18 @@ package com.baro13.readfast.infrastructure;
 
 import com.baro13.readfast.domain.AuthLog;
 import com.baro13.readfast.infrastructure.jpa.AuthLogEntity;
-import org.springframework.stereotype.Component;
 
-@Component
-public class AuthLogMapper {
+public final class AuthLogMapper {
+
+    private AuthLogMapper() {
+        throw new UnsupportedOperationException("Utility class");
+    }
 
     public static AuthLog toDomain(AuthLogEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        
         return AuthLog.of(
             entity.getId(),
             entity.getDate(),
@@ -17,4 +23,17 @@ public class AuthLogMapper {
             entity.getEndpoint());
     }
 
+    public static AuthLogEntity toEntity(AuthLog domain) {
+        if (domain == null) {
+            return null;
+        }
+        
+        return new AuthLogEntity(
+            domain.getId(),
+            domain.getDate(),
+            domain.getDevice(),
+            domain.getUserId(),
+            domain.getResult(),
+            domain.getEndpoint());
+    }
 }
