@@ -25,4 +25,13 @@ public class ApiResponse {
             data);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+    
+    public static ApiResponse error(String message) {
+        return new ApiResponse(
+            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+            InternalStatus.ERROR.getInternalCode(),
+            message,
+            null);
+    }
+
 }

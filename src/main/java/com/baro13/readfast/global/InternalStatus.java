@@ -9,6 +9,7 @@ public enum InternalStatus {
 
     SUCCESS(0),
     FAIL(500),
+    ERROR(500),
     ;
     private final int internalCode;
 
