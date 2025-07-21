@@ -34,7 +34,7 @@ public class AuthSearchCondition {
              message = "정렬 필드는 id, date, device, userId, result, endpoint 중 하나여야 합니다")
     private String sortBy;
     
-    @Pattern(regexp = "^(asc|desc)$", 
+    @Pattern(regexp = "^(?i)(asc|desc)$",
              message = "정렬 방향은 asc 또는 desc여야 합니다")
     private String direction;
 
