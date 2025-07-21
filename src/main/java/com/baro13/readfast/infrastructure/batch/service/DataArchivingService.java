@@ -1,6 +1,7 @@
 package com.baro13.readfast.infrastructure.batch.service;
 
 import com.baro13.readfast.domain.AuthLog;
+import com.baro13.readfast.global.common.TimeZoneConstants;
 import com.baro13.readfast.infrastructure.db.jpa.AuthLogEntity;
 import com.baro13.readfast.infrastructure.db.jpa.AuthLogMapper;
 import com.baro13.readfast.infrastructure.db.jpa.AuthQueryJpaRepository;
@@ -9,7 +10,6 @@ import com.baro13.readfast.infrastructure.storage.StorageService;
 import com.baro13.readfast.infrastructure.storage.service.AnalyticsService;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -65,7 +65,7 @@ public class DataArchivingService {
         // 날짜별로 그룹화
         Map<LocalDate, List<AuthLog>> groupedByDate = authLogs.stream()
                 .collect(Collectors.groupingBy(
-                        authLog -> authLog.getDate().atZone(ZoneId.systemDefault()).toLocalDate()
+                        authLog -> authLog.getDate().atZone(TimeZoneConstants.APPLICATION_ZONE).toLocalDate()
                 ));
         
         // 각 날짜별로 저장

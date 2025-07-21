@@ -5,9 +5,9 @@ import com.baro13.readfast.application.port.AuthLogStorageReader;
 import com.baro13.readfast.application.port.RetentionPolicyProvider;
 import com.baro13.readfast.controller.dto.AuthSearchCondition;
 import com.baro13.readfast.domain.AuthLog;
+import com.baro13.readfast.global.common.TimeZoneConstants;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +39,7 @@ public class AuthLogService {
         
         // DB에서만 조회
         log.info("통합 조회 V3 실행: DB에서만 조회");
-        return authLogDbReader.search(condition, createPageable(condition));
+        return authLogDbReader.searchV3(condition, createPageable(condition));
     }
     
     private Page<AuthLog> searchFromStorageAndDb(AuthSearchCondition condition, Instant dbCutoffDate) {
@@ -47,10 +47,10 @@ public class AuthLogService {
         
         // 스토리지에서 조회
         if (condition.getStartDate() != null) {
-            LocalDate startDate = condition.getStartDate().atZone(ZoneId.systemDefault()).toLocalDate();
+            LocalDate startDate = condition.getStartDate().atZone(TimeZoneConstants.APPLICATION_ZONE).toLocalDate();
             LocalDate endDate = condition.getEndDate() != null 
-                ? condition.getEndDate().atZone(ZoneId.systemDefault()).toLocalDate()
-                : dbCutoffDate.atZone(ZoneId.systemDefault()).toLocalDate();
+                ? condition.getEndDate().atZone(TimeZoneConstants.APPLICATION_ZONE).toLocalDate()
+                : dbCutoffDate.atZone(TimeZoneConstants.APPLICATION_ZONE).toLocalDate();
             
             List<AuthLog> storageResults = authLogStorageReader.retrieveDataByDateRange(startDate, endDate);
             List<AuthLog> filteredStorageResults = filterStorageResults(storageResults, condition);
@@ -61,13 +61,13 @@ public class AuthLogService {
         // DB에서 조회 (필요한 경우)
         if (condition.getEndDate() == null || condition.getEndDate().isAfter(dbCutoffDate)) {
             AuthSearchCondition dbCondition = createDbCondition(condition, dbCutoffDate);
-            Page<AuthLog> dbResults = authLogDbReader.search(dbCondition, createPageable(condition));
+            Page<AuthLog> dbResults = authLogDbReader.searchV3(dbCondition, createPageable(condition));
             allResults.addAll(dbResults.getContent());
             log.info("DB에서 {}개 레코드 조회 완료", dbResults.getContent().size());
         }
         
-        // 결과 필터링 및 정렬
-        List<AuthLog> filteredResults = allResults.stream()
+        // 결과 필터링 및 정렬 (병렬 처리로 성능 최적화)
+        List<AuthLog> filteredResults = allResults.parallelStream()
             .sorted((a, b) -> b.getDate().compareTo(a.getDate()))
             .collect(Collectors.toList());
         
@@ -78,7 +78,8 @@ public class AuthLogService {
     }
     
     private List<AuthLog> filterStorageResults(List<AuthLog> results, AuthSearchCondition condition) {
-        return results.stream()
+        // 대용량 데이터의 경우 병렬 스트림 사용으로 성능 최적화
+        return results.parallelStream()
             .filter(log -> matchesCondition(log, condition))
             .collect(Collectors.toList());
     }

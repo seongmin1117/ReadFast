@@ -17,9 +17,13 @@ public class ApiResponse {
     private String internalCodeDescription;
     private Object data;
 
+    private static String getCurrentDateTime() {
+        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
+
     public static ResponseEntity<ApiResponse> ok(Object data) {
         ApiResponse response = new ApiResponse(
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+            getCurrentDateTime(),
             InternalStatus.SUCCESS.getInternalCode(),
             InternalStatus.SUCCESS.getDescription(),
             data);
@@ -28,7 +32,7 @@ public class ApiResponse {
     
     public static ApiResponse error(String message) {
         return new ApiResponse(
-            LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
+            getCurrentDateTime(),
             InternalStatus.ERROR.getInternalCode(),
             message,
             null);

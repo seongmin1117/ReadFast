@@ -5,6 +5,9 @@ import com.baro13.readfast.infrastructure.policy.DataRetentionProperties;
 import com.baro13.readfast.infrastructure.storage.port.DataStorage;
 import com.baro13.readfast.infrastructure.storage.port.StorageType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
+import com.opencsv.exceptions.CsvException;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -13,6 +16,7 @@ import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -75,15 +79,10 @@ public class LocalFileStorage implements DataStorage {
 
     @Override
     public List<AuthLog> retrieveByDateRange(LocalDate startDate, LocalDate endDate) {
-        List<AuthLog> results = new ArrayList<>();
-        LocalDate current = startDate;
-        
-        while (!current.isAfter(endDate)) {
-            results.addAll(retrieve(current));
-            current = current.plusDays(1);
-        }
-        
-        return results.stream()
+        // 날짜 범위를 병렬 스트림으로 처리하여 성능 최적화
+        return startDate.datesUntil(endDate.plusDays(1))
+                .parallel()
+                .flatMap(date -> retrieve(date).stream())
                 .sorted((a, b) -> b.getDate().compareTo(a.getDate()))
                 .collect(Collectors.toList());
     }
@@ -164,17 +163,23 @@ public class LocalFileStorage implements DataStorage {
     }
 
     private void writeCsv(List<AuthLog> authLogs, OutputStreamWriter writer) throws IOException {
-        // CSV 헤더
-        writer.write("date,device,userId,result,endpoint\n");
-        
-        for (AuthLog log : authLogs) {
-            writer.write(String.format("%s,%s,%s,%s,%s\n",
-                log.getDate().toString(),
-                escapeCSV(log.getDevice()),
-                escapeCSV(log.getUserId()),
-                escapeCSV(log.getResult()),
-                escapeCSV(log.getEndpoint())
-            ));
+        try (CSVWriter csvWriter = new CSVWriter(writer)) {
+            // CSV 헤더 작성
+            String[] header = {"id", "date", "device", "userId", "result", "endpoint"};
+            csvWriter.writeNext(header);
+            
+            // 데이터 행 작성
+            for (AuthLog log : authLogs) {
+                String[] record = {
+                    log.getId() != null ? log.getId().toString() : "",
+                    log.getDate().toString(),
+                    log.getDevice() != null ? log.getDevice() : "",
+                    log.getUserId() != null ? log.getUserId() : "",
+                    log.getResult() != null ? log.getResult() : "",
+                    log.getEndpoint() != null ? log.getEndpoint() : ""
+                };
+                csvWriter.writeNext(record);
+            }
         }
     }
 
@@ -184,20 +189,45 @@ public class LocalFileStorage implements DataStorage {
     }
 
     private List<AuthLog> readCsv(InputStreamReader reader) throws IOException {
-        // CSV 파싱 로직 (간단 구현)
         List<AuthLog> results = new ArrayList<>();
-        // 실제로는 OpenCSV 등의 라이브러리 사용 권장
-        log.warn("CSV 읽기 기능은 아직 구현되지 않았습니다.");
+        
+        try (CSVReader csvReader = new CSVReader(reader)) {
+            List<String[]> records = csvReader.readAll();
+            
+            if (records.isEmpty()) {
+                return results;
+            }
+            
+            // 첫 번째 행은 헤더이므로 건너뛰기
+            for (int i = 1; i < records.size(); i++) {
+                String[] record = records.get(i);
+                
+                if (record.length >= 6) {
+                    try {
+                        Long id = record[0].isEmpty() ? null : Long.parseLong(record[0]);
+                        Instant date = Instant.parse(record[1]);
+                        String device = record[2].isEmpty() ? null : record[2];
+                        String userId = record[3].isEmpty() ? null : record[3];
+                        String result = record[4].isEmpty() ? null : record[4];
+                        String endpoint = record[5].isEmpty() ? null : record[5];
+                        
+                        AuthLog authLog = AuthLog.of(id, date, device, userId, result, endpoint);
+                        results.add(authLog);
+                    } catch (Exception e) {
+                        log.warn("CSV 레코드 파싱 실패 (라인 {}): {}", i + 1, Arrays.toString(record), e);
+                    }
+                }
+            }
+            
+            log.info("CSV에서 {}개 레코드 읽기 완료", results.size());
+        } catch (CsvException e) {
+            log.error("CSV 파일 읽기 실패", e);
+            throw new IOException("CSV 파일 읽기 실패", e);
+        }
+        
         return results;
     }
 
-    private String escapeCSV(String value) {
-        if (value == null) return "";
-        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
-            return "\"" + value.replace("\"", "\"\"") + "\"";
-        }
-        return value;
-    }
 
     private Path getFilePath(LocalDate date) {
         String dateStr = date.format(DateTimeFormatter.ofPattern(properties.getArchiveFileFormat()));

@@ -31,7 +31,7 @@ public class AuthLogDbReaderImpl implements AuthLogDbReader {
 
     @Override
     @LogQueryTime("V3")
-    public Page<AuthLog> search(AuthSearchCondition condition, Pageable pageable) {
+    public Page<AuthLog> searchV3(AuthSearchCondition condition, Pageable pageable) {
         return authQueryDslRepositoryV2.search(condition, pageable);
     }
 }

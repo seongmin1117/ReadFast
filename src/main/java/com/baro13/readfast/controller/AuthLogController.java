@@ -21,6 +21,18 @@ public class AuthLogController {
 
     @GetMapping("/search")
     public ResponseEntity<ApiResponse> search(AuthSearchCondition condition) {
+        if (condition == null) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("검색 조건이 필요합니다"));
+        }
+        
+        // 날짜 범위 검증
+        if (condition.getStartDate() != null && condition.getEndDate() != null 
+            && condition.getStartDate().isAfter(condition.getEndDate())) {
+            return ResponseEntity.badRequest()
+                .body(ApiResponse.error("시작 날짜는 종료 날짜보다 이전이어야 합니다"));
+        }
+        
         Page<AuthLog> response = authLogService.search(condition);
         PageResponse<AuthLog> data = PageResponse.from(response);
         return ApiResponse.ok(data);

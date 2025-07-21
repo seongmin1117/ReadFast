@@ -8,6 +8,6 @@ import org.springframework.data.domain.Pageable;
 public interface AuthLogDbReader {
     Page<AuthLog> searchV1(AuthSearchCondition condition, Pageable pageable);
     Page<AuthLog> searchV2(AuthSearchCondition condition, Pageable pageable);
-    Page<AuthLog> search(AuthSearchCondition condition, Pageable pageable);
+    Page<AuthLog> searchV3(AuthSearchCondition condition, Pageable pageable);
 
 }

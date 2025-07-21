@@ -2,10 +2,12 @@ package com.baro13.readfast.controller;
 
 import com.baro13.readfast.domain.AuthLog;
 import com.baro13.readfast.global.response.ApiResponse;
+import com.baro13.readfast.global.common.TimeZoneConstants;
 import com.baro13.readfast.infrastructure.scheduler.SimpleDataArchivingScheduler;
 import com.baro13.readfast.infrastructure.storage.StorageService;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -30,7 +32,7 @@ public class TestController {
     @PostMapping("/storage/save")
     public ResponseEntity<ApiResponse> testStorageSave(@RequestParam(defaultValue = "2024-01-01") String date) {
         try {
-            LocalDate targetDate = LocalDate.parse(date);
+            LocalDate targetDate = validateAndParseDate(date);
             
             // 테스트 데이터 생성
             List<AuthLog> testData = createTestData(10);
@@ -50,7 +52,7 @@ public class TestController {
     @GetMapping("/storage/retrieve")
     public ResponseEntity<ApiResponse> testStorageRetrieve(@RequestParam(defaultValue = "2024-01-01") String date) {
         try {
-            LocalDate targetDate = LocalDate.parse(date);
+            LocalDate targetDate = validateAndParseDate(date);
             
             // 스토리지에서 조회
             List<AuthLog> retrievedData = storageService.retrieveData(targetDate);
@@ -67,7 +69,7 @@ public class TestController {
     @GetMapping("/storage/exists")
     public ResponseEntity<ApiResponse> testStorageExists(@RequestParam(defaultValue = "2024-01-01") String date) {
         try {
-            LocalDate targetDate = LocalDate.parse(date);
+            LocalDate targetDate = validateAndParseDate(date);
             
             boolean exists = storageService.dataExists(targetDate);
             
@@ -112,7 +114,7 @@ public class TestController {
                     .toList();
             
             // 테스트를 위해 스토리지에 직접 저장
-            LocalDate targetDate = oldDate.atZone(java.time.ZoneId.systemDefault()).toLocalDate();
+            LocalDate targetDate = oldDate.atZone(TimeZoneConstants.APPLICATION_ZONE).toLocalDate();
             storageService.storeData(oldData, targetDate);
             
             log.info("과거 테스트 데이터 생성 완료: {} 개 레코드", count);
@@ -135,5 +137,34 @@ public class TestController {
                         "/api/test/endpoint_" + i
                 ))
                 .toList();
+    }
+
+    private LocalDate validateAndParseDate(String date) {
+        if (date == null || date.trim().isEmpty()) {
+            throw new IllegalArgumentException("날짜가 비어있습니다");
+        }
+        
+        // 날짜 형식 검증
+        if (!date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+            throw new IllegalArgumentException("잘못된 날짜 형식입니다. yyyy-MM-dd 형식을 사용하세요");
+        }
+        
+        try {
+            LocalDate parsedDate = LocalDate.parse(date);
+            
+            // 미래 날짜 검증
+            if (parsedDate.isAfter(LocalDate.now())) {
+                throw new IllegalArgumentException("미래 날짜는 사용할 수 없습니다");
+            }
+            
+            // 너무 오래된 날짜 검증 (2년 전까지만 허용)
+            if (parsedDate.isBefore(LocalDate.now().minusYears(2))) {
+                throw new IllegalArgumentException("2년 이전의 날짜는 사용할 수 없습니다");
+            }
+            
+            return parsedDate;
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("날짜 파싱 실패: " + e.getMessage());
+        }
     }
 }

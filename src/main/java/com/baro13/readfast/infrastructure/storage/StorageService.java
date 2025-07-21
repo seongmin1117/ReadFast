@@ -23,24 +23,41 @@ public class StorageService {
     
     public void storeData(List<AuthLog> authLogs, LocalDate date) {
         // 병렬 스토리지 저장으로 성능 개선
-        List<CompletableFuture<Void>> futures = storages.stream()
-            .map(storage -> CompletableFuture.runAsync(() -> {
+        List<CompletableFuture<Boolean>> futures = storages.stream()
+            .map(storage -> CompletableFuture.supplyAsync(() -> {
                 try {
                     long startTime = System.currentTimeMillis();
                     storage.store(authLogs, date);
                     long duration = System.currentTimeMillis() - startTime;
                     log.info("{}에 {}일자 데이터 저장 성공 ({}ms)", 
                         storage.getStorageType(), date, duration);
+                    return true;
                 } catch (Exception e) {
                     log.error("{}에 {}일자 데이터 저장 실패", 
                         storage.getStorageType(), date, e);
+                    return false;
                 }
             }, taskExecutor))
             .toList();
         
-        // 모든 스토리지 저장 완료 대기
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-            .join();
+        // 모든 스토리지 저장 완료 대기 및 결과 확인
+        List<Boolean> results = futures.stream()
+            .map(CompletableFuture::join)
+            .toList();
+        
+        long successCount = results.stream().mapToLong(r -> r ? 1 : 0).sum();
+        long failureCount = results.size() - successCount;
+        
+        if (failureCount > 0) {
+            log.warn("{}일자 데이터 저장 부분 실패: {}개 성공, {}개 실패", 
+                date, successCount, failureCount);
+            
+            if (successCount == 0) {
+                throw new RuntimeException("모든 스토리지에 데이터 저장 실패: " + date);
+            }
+        } else {
+            log.info("{}일자 데이터 모든 스토리지 저장 성공", date);
+        }
     }
     
     public List<AuthLog> retrieveData(LocalDate date) {
@@ -60,16 +77,23 @@ public class StorageService {
     }
     
     public List<AuthLog> retrieveDataByDateRange(LocalDate startDate, LocalDate endDate) {
-        return storages.stream()
+        // 여러 스토리지에서 병렬로 데이터 조회하여 성능 최적화
+        return storages.parallelStream()
             .flatMap(storage -> {
                 try {
-                    return storage.retrieveByDateRange(startDate, endDate).stream();
+                    long startTime = System.currentTimeMillis();
+                    List<AuthLog> data = storage.retrieveByDateRange(startDate, endDate);
+                    long duration = System.currentTimeMillis() - startTime;
+                    log.info("{}에서 {} ~ {} 기간 데이터 조회 성공: {}개 레코드 ({}ms)", 
+                        storage.getStorageType(), startDate, endDate, data.size(), duration);
+                    return data.stream();
                 } catch (Exception e) {
                     log.error("{}에서 {} ~ {} 기간 데이터 조회 실패", 
                         storage.getStorageType(), startDate, endDate, e);
-                    return Stream.<AuthLog>of();
+                    return Stream.<AuthLog>empty();
                 }
             })
+            .sorted((a, b) -> b.getDate().compareTo(a.getDate()))  // 최신 순 정렬
             .collect(Collectors.toList());
     }
     

@@ -77,3 +77,13 @@ data:
     # SQLite 분석 DB 설정
     enable-sqlite-conversion: true  # SQLite 변환 활성화
     sqlite-cleanup-after-conversion: false  # 변환 후 압축 파일 삭제 여부
+
+# 배치 처리 설정
+batch:
+  thread-pool:
+    core-pool-size: 4           # 기본 스레드 풀 크기
+    max-pool-size: 8            # 최대 스레드 풀 크기
+    queue-capacity: 100         # 작업 큐 용량
+    thread-name-prefix: "batch-" # 스레드 이름 접두사
+    keep-alive-seconds: 60      # 스레드 유지 시간
+    await-termination-seconds: 30 # 종료 대기 시간

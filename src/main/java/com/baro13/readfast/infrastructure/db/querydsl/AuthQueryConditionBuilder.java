@@ -9,6 +9,10 @@ import java.time.Instant;
 
 public class AuthQueryConditionBuilder {
     
+    private AuthQueryConditionBuilder() {
+        throw new UnsupportedOperationException("Utility class");
+    }
+    
     public static BooleanBuilder buildCondition(AuthSearchCondition condition) {
         BooleanBuilder builder = new BooleanBuilder();
         builder.and(createdAtGoe(condition.getStartDate()));
