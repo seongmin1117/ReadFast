@@ -26,6 +26,7 @@ repositories {
 dependencies {
     // Spring
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
@@ -45,6 +46,19 @@ dependencies {
     annotationProcessor "com.querydsl:querydsl-apt:5.0.0:jakarta"
     annotationProcessor "jakarta.annotation:jakarta.annotation-api"
     annotationProcessor "jakarta.persistence:jakarta.persistence-api"
+    
+    // Spring Batch
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+    
+    // JSON Processing
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    
+    // SQLite for analytics (업데이트된 드라이버 버전)
+    implementation 'org.xerial:sqlite-jdbc:3.50.2.0'
+    
+    // CSV 처리를 위한 OpenCSV
+    implementation 'com.opencsv:opencsv:5.9'
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

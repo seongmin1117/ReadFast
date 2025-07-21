@@ -1,18 +1,42 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3310/read-fast
+    url: jdbc:mysql://localhost:3310/read-fast?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: root
     password: 1234
+    # HikariCP 연결 풀 최적화
+    hikari:
+      maximum-pool-size: 20          # 최대 연결 수
+      minimum-idle: 5                # 최소 유휴 연결 수
+      idle-timeout: 300000          # 유휴 연결 타임아웃 (5분)
+      max-lifetime: 1200000         # 연결 최대 수명 (20분)
+      connection-timeout: 20000     # 연결 타임아웃 (20초)
+      validation-timeout: 5000      # 연결 검증 타임아웃 (5초)
+      leak-detection-threshold: 60000  # 연결 누수 감지 임계값 (60초)
+      pool-name: ReadFastHikariPool
   jpa:
     database-platform: org.hibernate.dialect.MySQL8Dialect
     properties:
       hibernate:
         format_sql: true
         show_sql: true
+        # 배치 처리 최적화
+        jdbc:
+          batch_size: 100            # 배치 크기
+          batch_versioned_data: true
+        order_inserts: true          # INSERT 순서 정렬
+        order_updates: true          # UPDATE 순서 정렬
+        # 쿼리 최적화
+        query:
+          in_clause_parameter_padding: true  # IN 절 파라미터 패딩
+        # 통계 설정
+        generate_statistics: false   # 통계 생성 비활성화 (성능 향상)
+        # 2차 캐시 비활성화 (Redis 사용 예정)
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
     hibernate:
       ddl-auto: update
-
 
 cors:
   allowed-origins:
@@ -33,3 +57,33 @@ cors:
     - Content-Disposition
   allow-credentials: true
   max-age: 3600
+
+# 데이터 보관 정책 설정
+data:
+  retention:
+    db-retention-days: 90        # DB에 보관할 일수
+    total-retention-days: 365    # 전체 보관 일수
+    batch-size: 1000             # 배치 처리 크기
+    archive-base-path: "./archive-data"  # 아카이브 파일 저장 경로
+    archive-file-format: "yyyy-MM-dd"           # 아카이브 파일명 형식
+    enable-archiving: true       # 아카이빙 활성화
+    enable-data-deletion: true   # 데이터 삭제 활성화
+    cron-expression: "0 0 2 * * ?"  # 매일 새벽 2시 실행
+    # 압축 설정
+    enable-compression: true     # 압축 활성화
+    compression-format: "gzip"   # 압축 형식 (gzip, zip, none)
+    # 파일 형식 설정
+    archive-data-format: "csv"   # 저장 형식 (json, csv, parquet) - CSV는 Metabase 호환
+    # SQLite 분석 DB 설정
+    enable-sqlite-conversion: true  # SQLite 변환 활성화
+    sqlite-cleanup-after-conversion: false  # 변환 후 압축 파일 삭제 여부
+
+# 배치 처리 설정
+batch:
+  thread-pool:
+    core-pool-size: 4           # 기본 스레드 풀 크기
+    max-pool-size: 8            # 최대 스레드 풀 크기
+    queue-capacity: 100         # 작업 큐 용량
+    thread-name-prefix: "batch-" # 스레드 이름 접두사
+    keep-alive-seconds: 60      # 스레드 유지 시간
+    await-termination-seconds: 30 # 종료 대기 시간
