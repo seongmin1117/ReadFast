@@ -1,12 +1,16 @@
 package com.baro13.readfast.infrastructure.storage;
 
 import com.baro13.readfast.domain.AuthLog;
+import com.baro13.readfast.infrastructure.storage.port.DataStorage;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -15,16 +19,28 @@ import org.springframework.stereotype.Service;
 public class StorageService {
     
     private final List<DataStorage> storages;
+    private final @Qualifier("taskExecutor") Executor taskExecutor;
     
     public void storeData(List<AuthLog> authLogs, LocalDate date) {
-        for (DataStorage storage : storages) {
-            try {
-                storage.store(authLogs, date);
-                log.info("{}에 {}일자 데이터 저장 성공", storage.getStorageType(), date);
-            } catch (Exception e) {
-                log.error("{}에 {}일자 데이터 저장 실패", storage.getStorageType(), date, e);
-            }
-        }
+        // 병렬 스토리지 저장으로 성능 개선
+        List<CompletableFuture<Void>> futures = storages.stream()
+            .map(storage -> CompletableFuture.runAsync(() -> {
+                try {
+                    long startTime = System.currentTimeMillis();
+                    storage.store(authLogs, date);
+                    long duration = System.currentTimeMillis() - startTime;
+                    log.info("{}에 {}일자 데이터 저장 성공 ({}ms)", 
+                        storage.getStorageType(), date, duration);
+                } catch (Exception e) {
+                    log.error("{}에 {}일자 데이터 저장 실패", 
+                        storage.getStorageType(), date, e);
+                }
+            }, taskExecutor))
+            .toList();
+        
+        // 모든 스토리지 저장 완료 대기
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+            .join();
     }
     
     public List<AuthLog> retrieveData(LocalDate date) {

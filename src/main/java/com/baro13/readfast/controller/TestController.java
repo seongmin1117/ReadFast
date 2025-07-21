@@ -1,8 +1,8 @@
 package com.baro13.readfast.controller;
 
 import com.baro13.readfast.domain.AuthLog;
-import com.baro13.readfast.global.ApiResponse;
-import com.baro13.readfast.infrastructure.scheduler.DataArchivingScheduler;
+import com.baro13.readfast.global.response.ApiResponse;
+import com.baro13.readfast.infrastructure.scheduler.SimpleDataArchivingScheduler;
 import com.baro13.readfast.infrastructure.storage.StorageService;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TestController {
 
     private final StorageService storageService;
-    private final DataArchivingScheduler dataArchivingScheduler;
+    private final SimpleDataArchivingScheduler dataArchivingScheduler;
 
     @PostMapping("/storage/save")
     public ResponseEntity<ApiResponse> testStorageSave(@RequestParam(defaultValue = "2024-01-01") String date) {

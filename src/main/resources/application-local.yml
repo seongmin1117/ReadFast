@@ -1,18 +1,42 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3310/read-fast
+    url: jdbc:mysql://localhost:3310/read-fast?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
     username: root
     password: 1234
+    # HikariCP 연결 풀 최적화
+    hikari:
+      maximum-pool-size: 20          # 최대 연결 수
+      minimum-idle: 5                # 최소 유휴 연결 수
+      idle-timeout: 300000          # 유휴 연결 타임아웃 (5분)
+      max-lifetime: 1200000         # 연결 최대 수명 (20분)
+      connection-timeout: 20000     # 연결 타임아웃 (20초)
+      validation-timeout: 5000      # 연결 검증 타임아웃 (5초)
+      leak-detection-threshold: 60000  # 연결 누수 감지 임계값 (60초)
+      pool-name: ReadFastHikariPool
   jpa:
     database-platform: org.hibernate.dialect.MySQL8Dialect
     properties:
       hibernate:
         format_sql: true
         show_sql: true
+        # 배치 처리 최적화
+        jdbc:
+          batch_size: 100            # 배치 크기
+          batch_versioned_data: true
+        order_inserts: true          # INSERT 순서 정렬
+        order_updates: true          # UPDATE 순서 정렬
+        # 쿼리 최적화
+        query:
+          in_clause_parameter_padding: true  # IN 절 파라미터 패딩
+        # 통계 설정
+        generate_statistics: false   # 통계 생성 비활성화 (성능 향상)
+        # 2차 캐시 비활성화 (Redis 사용 예정)
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
     hibernate:
       ddl-auto: update
-
 
 cors:
   allowed-origins:
