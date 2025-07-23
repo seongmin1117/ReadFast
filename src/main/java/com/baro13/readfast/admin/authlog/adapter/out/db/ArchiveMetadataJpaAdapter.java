@@ -85,6 +85,28 @@ public class ArchiveMetadataJpaAdapter implements ArchiveMetadataRepository {
     }
 
     @Override
+    public List<ArchiveMetadata> findByExactDateRange(Instant startDate, Instant endDate) {
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("시작일 또는 종료일이 null입니다");
+        }
+
+        if (startDate.isAfter(endDate)) {
+            throw new IllegalArgumentException("시작일이 종료일보다 이후일 수 없습니다");
+        }
+
+        try {
+            return jpaRepository.findByExactDateRange(startDate, endDate)
+                .stream()
+                .map(mapper::toDomain)
+                .toList();
+
+        } catch (Exception e) {
+            log.error("아카이브 메타데이터 정확한 날짜 범위 조회 실패. 기간: {} ~ {}", startDate, endDate, e);
+            throw new RuntimeException("아카이브 메타데이터 정확한 날짜 범위 조회 중 오류 발생", e);
+        }
+    }
+
+    @Override
     public List<ArchiveMetadata> findByStorageType(String storageType) {
         if (storageType == null || storageType.trim().isEmpty()) {
             throw new IllegalArgumentException("스토리지 타입이 null이거나 빈 문자열입니다");

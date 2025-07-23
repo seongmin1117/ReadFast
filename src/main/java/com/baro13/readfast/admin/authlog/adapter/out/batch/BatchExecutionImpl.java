@@ -44,98 +44,141 @@ public class BatchExecutionImpl implements BatchExecution {
         log.info("아카이빙 배치 시작");
         
         try {
-            // 아카이빙 대상 데이터 조회
+            // 아카이빙 대상 데이터 조회 (성능 개선을 위한 스트리밍 방식)
             var cutoffDate = LocalDateTime.now().minusDays(policy.getRetentionRule().getDbRetentionDays());
-            log.info("아카이빙 기준 날짜: {}, 배치 크기: {}", cutoffDate, policy.getRetentionRule().getBatchSize());
+            var batchSize = policy.getRetentionRule().getBatchSize();
+            log.info("아카이빙 기준 날짜: {}, 배치 크기: {}", cutoffDate, batchSize);
             
-            var targetData = authLogDbReader.findOlderThan(cutoffDate, policy.getRetentionRule().getBatchSize());
-            log.info("조회된 아카이빙 대상 데이터 건수: {}", targetData.size());
-
-            if (targetData.isEmpty()) {
-                var endTime = LocalDateTime.now();
-                var successResult = BatchExecutionResult.success(0, 0, 0,
-                        java.time.Duration.between(startTime, endTime).toMillis(),
-                        startTime, endTime
-                );
-
-                
-                log.info("아카이빙 배치 완료 - 처리할 데이터 없음");
-                return successResult;
-            }
+            // 대용량 데이터 처리를 위한 청크 단위 처리
+            var totalProcessed = 0L;
+            var totalArchived = 0L;
+            var totalDeleted = 0L;
+            var hasMoreData = true;
+            var chunkNumber = 1;
             
-            // 스토리지에 아카이브
-            DataStorage storage = dataStorageFactory.resolve();
-            var archivedCount = 0L;
-            var deletedCount = 0L;
-            
-            try {
-                // 데이터를 스토리지에 저장
-                storage.store(targetData, currentDate);
-                archivedCount = targetData.size();
+            while (hasMoreData && totalProcessed < 50000) { // 최대 5만건 제한
+                log.info("배치 청크 #{} 처리 시작", chunkNumber);
                 
-                // 아카이브 메타데이터 저장
-                saveArchiveMetadata(policy, targetData, currentDate, storage);
+                var targetData = authLogDbReader.findOlderThan(cutoffDate, batchSize);
+                log.info("청크 #{} - 조회된 아카이빙 대상 데이터 건수: {}", chunkNumber, targetData.size());
                 
-                // 데이터 삭제 (정책에 따라)
-                if (policy.getRetentionRule().isEnableDataDeletion()) {
-                    // MVP: 실제 삭제는 구현하지 않음 (데이터 안전을 위해)
-                    deletedCount = targetData.size();
-                    log.info("데이터 삭제 시뮬레이션 - Count: {}", deletedCount);
+                if (targetData.isEmpty()) {
+                    hasMoreData = false;
+                    break;
                 }
                 
-                var endTime = LocalDateTime.now();
-                var successResult = BatchExecutionResult.success(targetData.size(), archivedCount, deletedCount,
-                        java.time.Duration.between(startTime, endTime).toMillis(),
-                        startTime, endTime
-                );
-
+                // 스토리지 초기화 (청크별로)
+                DataStorage storage = dataStorageFactory.resolve();
                 
-                log.info("아카이빙 배치 완료 - Processed: {}, Archived: {}, Deleted: {}", targetData.size(), archivedCount, deletedCount);
+                // 청크별 처리
+                var chunkResult = processDataChunk(targetData, policy, storage, chunkNumber);
+                totalProcessed += chunkResult.processedCount();
+                totalArchived += chunkResult.archivedCount();
+                totalDeleted += chunkResult.deletedCount();
                 
-                return successResult;
+                // 메모리 정리
+                targetData.clear();
+                System.gc(); // 힌트 제공
                 
-            } catch (Exception e) {
-                var endTime = LocalDateTime.now();
-                var failureResult = BatchExecutionResult.failure("스토리지 저장 실패: " + e.getMessage(), startTime, endTime
-                );
-
+                chunkNumber++;
                 
-                log.error("아카이빙 배치 실패", e);
-                return failureResult;
+                // 청크 사이 잠시 대기 (시스템 부하 방지)
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("배치 처리 중 인터럽트 발생");
+                    break;
+                }
             }
+            
+            var endTime = LocalDateTime.now();
+            var successResult = BatchExecutionResult.success(
+                totalProcessed, 
+                totalArchived, 
+                totalDeleted,
+                java.time.Duration.between(startTime, endTime).toMillis(),
+                startTime, 
+                endTime
+            );
+            
+            log.info("아카이빙 배치 완료 - 총 청크 수: {}, Processed: {}, Archived: {}, Deleted: {}", 
+                    chunkNumber - 1, totalProcessed, totalArchived, totalDeleted);
+            
+            return successResult;
             
         } catch (Exception e) {
             var endTime = LocalDateTime.now();
-            var failureResult = BatchExecutionResult.failure("배치 실행 실패: " + e.getMessage(), startTime, endTime
-            );
-
+            var failureResult = BatchExecutionResult.failure("배치 실행 실패: " + e.getMessage(), startTime, endTime);
             
-            log.error("아카이빙 배치 실행 실패");
+            log.error("아카이빙 배치 실행 실패", e);
             return failureResult;
         }
     }
+
+    /**
+     * 데이터 청크 처리 (성능 최적화)
+     */
+    private ChunkResult processDataChunk(List<AuthLog> targetData, DataRetentionPolicy policy, DataStorage storage, int chunkNumber) {
+        var currentDate = LocalDate.now();
+        
+        try {
+            // 데이터를 스토리지에 저장
+            storage.store(targetData, currentDate);
+            
+            // 아카이브 메타데이터 저장
+            saveArchiveMetadata(policy, targetData, storage);
+            
+            // 데이터 삭제 (정책에 따라)
+            var deletedCount = 0L;
+            if (policy.getRetentionRule().isEnableDataDeletion()) {
+                // MVP: 실제 삭제는 구현하지 않음 (데이터 안전을 위해)
+                deletedCount = targetData.size();
+                log.debug("청크 #{} - 데이터 삭제 시뮬레이션: {}건", chunkNumber, deletedCount);
+            }
+            
+            log.info("청크 #{} 처리 완료 - Processed: {}, Archived: {}, Deleted: {}", 
+                    chunkNumber, targetData.size(), targetData.size(), deletedCount);
+            
+            return new ChunkResult(targetData.size(), targetData.size(), deletedCount);
+            
+        } catch (Exception e) {
+            log.error("청크 #{} 처리 실패: {}", chunkNumber, e.getMessage(), e);
+            return new ChunkResult(targetData.size(), 0, 0);
+        }
+    }
+
+    /**
+     * 청크 처리 결과
+     */
+    private record ChunkResult(long processedCount, long archivedCount, long deletedCount) {}
     
     /**
      * 아카이브 메타데이터를 데이터베이스에 저장
      * 
      * @param policy 데이터 보관 정책
      * @param targetData 아카이브된 데이터
-     * @param currentDate 현재 날짜
      * @param storage 사용된 스토리지
      */
     private void saveArchiveMetadata(DataRetentionPolicy policy, 
                                    List<AuthLog> targetData,
-                                   LocalDate currentDate, 
                                    DataStorage storage) {
         try {
+            // 중복 방지: 이미 존재하는 메타데이터인지 확인
+            var dateRange = calculateDateRange(targetData);
+            var existingMetadata = archiveMetadataRepository.findByExactDateRange(dateRange.startDate(), dateRange.endDate());
+            
+            if (!existingMetadata.isEmpty()) {
+                log.warn("이미 아카이브된 데이터 범위입니다. 기간: {} ~ {}, 기존 메타데이터 수: {}", 
+                        dateRange.startDate(), dateRange.endDate(), existingMetadata.size());
+                return;
+            }
+            
             // 아카이브된 파일 경로 계산
-            var filePath = calculateArchiveFilePath(policy, currentDate, storage);
+            var filePath = calculateArchiveFilePath(policy, targetData, storage);
             
             // 파일 크기 계산 (실제 파일이 존재하는 경우)
             var fileSizeBytes = calculateFileSize(filePath);
-            
-            // 아카이브 기간 계산 (데이터의 시작일과 종료일)
-            var dateRange = calculateDateRange(targetData);
             
             // ArchiveMetadata 생성
             var metadata = archiveMetadataMapper.createFromBatchResult(
@@ -159,14 +202,26 @@ public class BatchExecutionImpl implements BatchExecution {
     }
     
     /**
-     * 아카이브 파일 경로 계산
+     * 아카이브 파일 경로 계산 (데이터 날짜 범위 기반)
      */
-    private String calculateArchiveFilePath(DataRetentionPolicy policy, LocalDate date, DataStorage storage) {
+    private String calculateArchiveFilePath(DataRetentionPolicy policy, List<AuthLog> targetData, DataStorage storage) {
         var archiveBasePath = policy.getArchivingStrategy().getArchiveBasePath();
-        var dateDir = date.format(DATE_FORMATTER);
-        var fileName = dateDir + storage.getArchiveFormat().getExtension();
         
-        return Paths.get(archiveBasePath, dateDir, fileName).toString();
+        // 데이터의 실제 날짜 범위를 기반으로 파일명 생성
+        var dateRange = calculateDateRange(targetData);
+        var startDateStr = dateRange.startDate().atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DATE_FORMATTER);
+        var endDateStr = dateRange.endDate().atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DATE_FORMATTER);
+        
+        // 날짜 범위가 같은 경우 (하루치 데이터)
+        String fileName;
+        if (startDateStr.equals(endDateStr)) {
+            fileName = startDateStr + storage.getArchiveFormat().getExtension();
+        } else {
+            fileName = startDateStr + "_to_" + endDateStr + storage.getArchiveFormat().getExtension();
+        }
+        
+        // 시작 날짜를 기준으로 디렉토리 구성
+        return Paths.get(archiveBasePath, startDateStr, fileName).toString();
     }
     
     /**

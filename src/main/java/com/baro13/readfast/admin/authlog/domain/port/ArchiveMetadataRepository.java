@@ -31,7 +31,7 @@ public interface ArchiveMetadataRepository {
     Optional<ArchiveMetadata> findById(Long id);
 
     /**
-     * 특정 기간의 아카이브 메타데이터 조회
+     * 특정 기간의 아카이브 메타데이터 조회 (겹치는 기간 포함)
      * 
      * @param startDate 시작일
      * @param endDate 종료일
@@ -39,6 +39,16 @@ public interface ArchiveMetadataRepository {
      * @throws IllegalArgumentException startDate 또는 endDate가 null인 경우
      */
     List<ArchiveMetadata> findByDateRange(Instant startDate, Instant endDate);
+
+    /**
+     * 정확한 기간 일치하는 아카이브 메타데이터 조회 (중복 체크용)
+     * 
+     * @param startDate 시작일
+     * @param endDate 종료일
+     * @return 해당 기간의 메타데이터 목록
+     * @throws IllegalArgumentException startDate 또는 endDate가 null인 경우
+     */
+    List<ArchiveMetadata> findByExactDateRange(Instant startDate, Instant endDate);
 
     /**
      * 특정 스토리지 타입의 아카이브 메타데이터 조회
