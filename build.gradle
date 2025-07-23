@@ -24,44 +24,42 @@ repositories {
 }
 
 dependencies {
-    // Spring
+    // Spring Core
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+    
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
 
-    // Jpa
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-
-    // Redis
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-
-    // MySql
+    // Database
     runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'com.h2database:h2' // For testing
 
-    // QueryDsl
+    // QueryDSL (Latest version for Spring Boot 3.x)
     implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
     annotationProcessor "com.querydsl:querydsl-apt:5.0.0:jakarta"
     annotationProcessor "jakarta.annotation:jakarta.annotation-api"
     annotationProcessor "jakarta.persistence:jakarta.persistence-api"
-    
-    // Spring Batch
-    implementation 'org.springframework.boot:spring-boot-starter-batch'
-    
+
+    // Cache
+    implementation 'com.github.ben-manes.caffeine:caffeine'
+
     // JSON Processing
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
-    
-    // SQLite for analytics (업데이트된 드라이버 버전)
-    implementation 'org.xerial:sqlite-jdbc:3.50.2.0'
-    
-    // CSV 처리를 위한 OpenCSV
-    implementation 'com.opencsv:opencsv:5.9'
+
+    // SQLite for archiving
+    implementation 'org.xerial:sqlite-jdbc:3.43.2.2'
 
     // Test
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.batch:spring-batch-test'
+    testImplementation 'org.testcontainers:mysql'
+    testImplementation 'org.testcontainers:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

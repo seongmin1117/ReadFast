@@ -4,7 +4,7 @@
 
 ## 프로젝트 개요
 
-ReadFast는 두 가지 다른 검색 구현(V1과 V2)을 가진 인증 로그 조회용 Spring Boot 애플리케이션입니다. 이 애플리케이션은 페이지네이션과 검색 성능 최적화에 대한 다양한 접근법을 보여줍니다.
+ReadFast는 세 가지 다른 검색 구현(V1, V2, V3)을 가진 인증 로그 조회용 Spring Boot 애플리케이션입니다. 이 애플리케이션은 페이지네이션과 검색 성능 최적화에 대한 다양한 접근법을 보여주며, React + TypeScript 기반의 프론트엔드 대시보드를 포함합니다.
 
 ## 개발 명령어
 
@@ -41,6 +41,24 @@ docker-compose down
 ./gradlew compileJava
 ```
 
+### 프론트엔드 개발
+```bash
+# 프론트엔드 디렉토리로 이동
+cd frontend
+
+# 패키지 설치
+npm install
+
+# 개발 서버 실행 (http://localhost:5173)
+npm run dev
+
+# 프론트엔드 빌드
+npm run build
+
+# 타입 체크
+npm run build
+```
+
 ## 아키텍처 개요
 
 ### 패키지 구조
@@ -57,9 +75,10 @@ docker-compose down
 - **어댑터 (구현체)**: infrastructure 계층의 `AuthQueryRepositoryImpl`
 - 비즈니스 로직과 데이터 액세스 간의 깨끗한 분리
 
-#### 두 가지 쿼리 전략
+#### 세 가지 쿼리 전략
 - **V1**: 총 개수와 함께하는 전통적인 오프셋 기반 페이지네이션
 - **V2**: 더 나은 성능을 위한 총 개수 없는 커서 기반 페이지네이션
+- **V3**: DB + 스토리지 통합 조회 (아카이빙된 데이터 포함)
 
 #### QueryDSL 통합
 - 타입 안전한 조건으로 동적 쿼리 빌딩
@@ -219,3 +238,131 @@ chmod 755 /tmp/readfast/archive
 - 아카이빙된 데이터 크기와 개수
 - 스토리지 용량 사용률
 - 통합 조회 성능 및 응답 시간
+
+## 프론트엔드 통합 (2025.07.23 완료)
+
+### 개요
+React + TypeScript + Vite 기반의 프론트엔드 대시보드가 Spring Boot 백엔드와 완전히 통합되었습니다. 백엔드-프론트엔드 간의 API 형식 불일치 문제를 해결하고, 세 가지 API 버전(V1/V2/V3)의 성능을 비교할 수 있는 대시보드를 구현했습니다.
+
+### 핵심 기능
+
+#### 1. API 응답 형식 어댑터 패턴
+**문제**: 백엔드와 프론트엔드의 API 응답 형식 불일치
+- **백엔드 형식**: `{dateTime, internalCode, internalCodeDescription, data}`
+- **프론트엔드 기대 형식**: `{success, data, message, timestamp}`
+
+**해결책**: `ApiResponseAdapter` 클래스 구현
+```typescript
+// 파일 위치: frontend/src/services/apiResponseAdapter.ts
+export class ApiResponseAdapter {
+  // 백엔드 API 응답을 프론트엔드 형식으로 변환
+  static adaptApiResponse<T>(backendResponse: BackendApiResponse<T>): ApiResponse<T>
+  
+  // 백엔드 AuthLog를 프론트엔드 AuthLog로 변환
+  static adaptAuthLog(backendAuthLog: BackendAuthLog): AuthLog
+  
+  // 백엔드 페이지 응답을 프론트엔드 페이지 응답으로 변환
+  static adaptPageResponse(backendPageResponse: BackendPageResponse<BackendAuthLog>): PageResponse<AuthLog>
+}
+```
+
+#### 2. 데이터 타입 변환
+- **인증 결과**: "SUCCESS"/"FAIL" → "success"/"failure"
+- **날짜 형식**: ISO 8601 문자열 처리
+- **페이지네이션**: 완전한 페이지네이션 데이터 어댑팅
+
+#### 3. API 버전 선택 및 성능 비교 대시보드
+- **V1 (오프셋)**: 전통적인 페이지네이션, 정확한 총 개수 제공
+- **V2 (커서)**: 성능 최적화된 커서 기반 페이지네이션
+- **V3 (통합)**: DB + 스토리지 통합 조회
+- **실시간 성능 측정**: 응답 시간, 총 레코드 수, 측정 시간 표시
+- **성능 등급**: 우수(<100ms), 보통(<500ms), 개선 필요(≥500ms)
+
+### 주요 구현 파일
+
+#### 타입 정의
+```bash
+frontend/src/types/api.types.ts     # 백엔드 API 응답 타입
+frontend/src/types/auth.types.ts    # 인증 로그 및 성능 메트릭 타입
+```
+
+#### 서비스 계층
+```bash
+frontend/src/services/apiResponseAdapter.ts  # API 응답 어댑터
+frontend/src/services/authLogService.ts      # 성능 측정이 포함된 API 서비스
+```
+
+#### UI 컴포넌트
+```bash
+frontend/src/pages/AuthLogs/AuthLogList.tsx  # 메인 대시보드
+frontend/src/hooks/useAuthLogs.ts            # 상태 관리 훅
+```
+
+#### 유틸리티
+```bash
+frontend/src/utils/format.utils.ts   # 데이터 포맷팅 유틸리티
+frontend/src/utils/date.utils.ts     # 날짜 처리 유틸리티
+```
+
+### 성능 측정 기능
+```typescript
+interface ApiPerformanceMetrics {
+  version: ApiVersion;
+  responseTime: number;    // 밀리초
+  totalRecords: number;    // 총 레코드 수
+  timestamp: Date;         // 측정 시간
+}
+```
+
+### 프록시 설정
+```javascript
+// vite.config.ts - 프론트엔드에서 백엔드 API 프록시 설정
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
+})
+```
+
+### 통합 테스트 확인사항 ✅
+1. **백엔드 API**: 모든 버전(V1/V2/V3) 정상 작동
+2. **프론트엔드 빌드**: TypeScript 컴파일 에러 없음
+3. **데이터 플로우**: 백엔드 → 어댑터 → 프론트엔드 완전 연동
+4. **성능 측정**: 실시간 응답 시간 측정 및 비교 대시보드
+5. **CORS 설정**: 프론트엔드(5173) ↔ 백엔드(8080) 연동
+
+### 개발 워크플로우
+```bash
+# 1. 백엔드 실행
+./gradlew bootRun
+
+# 2. 프론트엔드 실행
+cd frontend && npm run dev
+
+# 3. 브라우저에서 확인
+http://localhost:5173
+
+# 4. API 직접 테스트
+curl "http://localhost:8080/api/v1/auth/search?page=0&size=5"
+```
+
+### 중요 설계 결정사항
+1. **어댑터 패턴**: 백엔드 API 변경 없이 프론트엔드 통합
+2. **타입 안전성**: TypeScript로 런타임 에러 방지
+3. **성능 우선**: 캐싱, 배치 요청, 효율적인 상태 관리
+4. **확장성**: 새로운 API 버전 추가 용이한 구조
+5. **사용자 경험**: 실시간 성능 비교 및 직관적인 UI
+
+### 향후 작업 고려사항
+- [ ] 더 많은 API 엔드포인트 통합
+- [ ] 실시간 업데이트 (WebSocket)
+- [ ] 고급 필터링 및 검색
+- [ ] 데이터 시각화 (차트, 그래프)
+- [ ] 사용자 권한 관리
+- [ ] 다국어 지원
