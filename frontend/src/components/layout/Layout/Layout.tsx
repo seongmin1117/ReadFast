@@ -37,7 +37,7 @@ export const Layout: React.FC<LayoutProps> = ({
       />
 
       {/* Main Content */}
-      <div className="lg:pl-64">
+      <div className="lg:ml-64">
         {/* Header */}
         <Header
           onMenuClick={toggleSidebar}
@@ -46,7 +46,7 @@ export const Layout: React.FC<LayoutProps> = ({
         />
 
         {/* Page Content */}
-        <main className={cn('p-6', contentClassName)}>
+        <main className={cn('px-4 py-6 lg:px-8', contentClassName)}>
           {children}
         </main>
       </div>

@@ -50,13 +50,7 @@ public class BatchExecutionImpl implements BatchExecution {
             
             var targetData = authLogDbReader.findOlderThan(cutoffDate, policy.getRetentionRule().getBatchSize());
             log.info("조회된 아카이빙 대상 데이터 건수: {}", targetData.size());
-            
-            // 테스트용: 실제 데이터가 없으면 더미 데이터 생성
-            if (targetData.isEmpty()) {
-                log.info("테스트용 더미 데이터 생성");
-                targetData = createTestData();
-            }
-            
+
             if (targetData.isEmpty()) {
                 var endTime = LocalDateTime.now();
                 var successResult = BatchExecutionResult.success(0, 0, 0,
@@ -216,17 +210,5 @@ public class BatchExecutionImpl implements BatchExecution {
      * 날짜 범위를 나타내는 레코드
      */
     private record DateRange(Instant startDate, Instant endDate) {}
-    
-    /**
-     * 테스트용 더미 데이터 생성
-     */
-    private List<AuthLog> createTestData() {
-        var now = Instant.now();
-        return List.of(
-            AuthLog.of(1L, now.minusSeconds(3600), "mobile", "user1", "SUCCESS", "/api/auth/login"),
-            AuthLog.of(2L, now.minusSeconds(1800), "web", "user2", "FAILURE", "/api/auth/login"),
-            AuthLog.of(3L, now.minusSeconds(900), "tablet", "user3", "SUCCESS", "/api/auth/refresh")
-        );
-    }
 
 }
