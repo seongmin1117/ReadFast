@@ -18,7 +18,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [isProfileOpen, setIsProfileOpen] = React.useState(false);
 
   return (
-    <header className={cn('bg-white border-b border-gray-200 px-6 py-4', className)}>
+    <header className={cn('bg-white border-b border-gray-200 px-4 py-4 lg:px-6', className)}>
       <div className="flex items-center justify-between">
         {/* Left side */}
         <div className="flex items-center space-x-4">

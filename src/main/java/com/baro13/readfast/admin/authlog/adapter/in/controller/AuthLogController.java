@@ -2,7 +2,6 @@ package com.baro13.readfast.admin.authlog.adapter.in.controller;
 
 import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
 import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.PageResponse;
-import com.baro13.readfast.admin.authlog.application.in.ArchivingService;
 import com.baro13.readfast.admin.authlog.application.in.AuthLogService;
 import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import com.baro13.readfast.global.response.ApiResponse;
@@ -25,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthLogController {
 
     private final AuthLogService authLogService;
-    private final ArchivingService archivingService;
+
 
     /**
      * 인증로그 검색 (통합 조회: DB + 스토리지)
@@ -46,31 +45,5 @@ public class AuthLogController {
         }
     }
 
-    /**
-     * 수동 아카이빙 배치 실행
-     */
-    @GetMapping("/archiving/execute")
-    public ResponseEntity<ApiResponse<String>> executeArchivingBatch() {
-        log.info("수동 아카이빙 배치 실행 요청");
-        
-        try {
-            var result = archivingService.executeArchivingBatch();
-            
-            if (result.success()) {
-                var message = String.format("배치 실행 성공 - 처리건수: %d, 실행시간: %dms", 
-                                           result.processedRecords(), result.durationMillis());
-                log.info("수동 아카이빙 배치 성공: {}", message);
-                return ResponseEntity.ok(ApiResponse.success(message));
-            } else {
-                log.error("수동 아카이빙 배치 실패: {}", result.message());
-                return ResponseEntity.internalServerError()
-                        .body(ApiResponse.error("배치 실행 실패: " + result.message()));
-            }
-            
-        } catch (Exception e) {
-            log.error("수동 아카이빙 배치 실행 중 예외 발생", e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error("배치 실행 실패: " + e.getMessage()));
-        }
-    }
+
 }
