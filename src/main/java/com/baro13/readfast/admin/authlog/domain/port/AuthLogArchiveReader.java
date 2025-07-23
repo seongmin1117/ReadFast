@@ -1,6 +1,6 @@
-package com.baro13.readfast.domain.port;
+package com.baro13.readfast.admin.authlog.domain.port;
 
-import com.baro13.readfast.domain.model.AuthLog;
+import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import java.time.LocalDate;
 import java.util.List;
 

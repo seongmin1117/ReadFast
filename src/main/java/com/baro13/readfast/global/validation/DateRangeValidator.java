@@ -1,6 +1,6 @@
 package com.baro13.readfast.global.validation;
 
-import com.baro13.readfast.controller.dto.AuthSearchCondition;
+import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import java.time.Instant;

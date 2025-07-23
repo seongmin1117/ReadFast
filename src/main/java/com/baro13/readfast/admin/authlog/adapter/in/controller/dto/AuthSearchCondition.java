@@ -1,4 +1,4 @@
-package com.baro13.readfast.adapter.in.controller.authlog.dto;
+package com.baro13.readfast.admin.authlog.adapter.in.controller.dto;
 
 import com.baro13.readfast.global.validation.ValidDateRange;
 import jakarta.validation.constraints.Max;

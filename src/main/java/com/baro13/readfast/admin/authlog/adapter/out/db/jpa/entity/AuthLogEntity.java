@@ -1,4 +1,4 @@
-package com.baro13.readfast.adapter.out.authlog.db.jpa.entity;
+package com.baro13.readfast.admin.authlog.adapter.out.db.jpa.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

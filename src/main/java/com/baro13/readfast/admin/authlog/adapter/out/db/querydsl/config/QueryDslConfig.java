@@ -1,4 +1,4 @@
-package com.baro13.readfast.adapter.out.authlog.db.querydsl.config;
+package com.baro13.readfast.admin.authlog.adapter.out.db.querydsl.config;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import jakarta.persistence.EntityManager;

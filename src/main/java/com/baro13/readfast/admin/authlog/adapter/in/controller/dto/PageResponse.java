@@ -1,4 +1,4 @@
-package com.baro13.readfast.adapter.in.controller.authlog.dto;
+package com.baro13.readfast.admin.authlog.adapter.in.controller.dto;
 
 import java.util.List;
 import org.springframework.data.domain.Page;

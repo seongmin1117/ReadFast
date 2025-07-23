@@ -1,10 +1,10 @@
-package com.baro13.readfast.adapter.out.authlog.db;
+package com.baro13.readfast.admin.authlog.adapter.out.db;
 
-import com.baro13.readfast.adapter.in.controller.authlog.dto.AuthSearchCondition;
-import com.baro13.readfast.adapter.out.authlog.db.querydsl.AuthQueryDslRepositoryV1;
-import com.baro13.readfast.adapter.out.authlog.db.querydsl.AuthQueryDslRepositoryV2;
-import com.baro13.readfast.domain.model.AuthLog;
-import com.baro13.readfast.domain.port.AuthLogDbReader;
+import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
+import com.baro13.readfast.admin.authlog.adapter.out.db.querydsl.AuthQueryDslRepositoryV1;
+import com.baro13.readfast.admin.authlog.adapter.out.db.querydsl.AuthQueryDslRepositoryV2;
+import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
+import com.baro13.readfast.admin.authlog.domain.port.AuthLogDbReader;
 import com.baro13.readfast.global.logging.LogQueryTime;
 import java.time.LocalDateTime;
 import java.util.List;

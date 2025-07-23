@@ -1,10 +1,11 @@
-package com.baro13.readfast.adapter.out.authlog.db.querydsl;
+package com.baro13.readfast.admin.authlog.adapter.out.db.querydsl;
 
-import static com.baro13.readfast.adapter.out.db.jpa.QAuthLogEntity.authLogEntity;
 
-import com.baro13.readfast.adapter.in.controller.authlog.dto.AuthSearchCondition;
-import com.baro13.readfast.adapter.out.authlog.db.jpa.mapper.AuthLogMapper;
-import com.baro13.readfast.domain.model.AuthLog;
+import static com.baro13.readfast.admin.authlog.adapter.out.db.jpa.entity.QAuthLogEntity.authLogEntity;
+
+import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
+import com.baro13.readfast.admin.authlog.adapter.out.db.jpa.mapper.AuthLogMapper;
+import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import com.querydsl.core.types.Order;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.jpa.impl.JPAQueryFactory;

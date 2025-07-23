@@ -1,4 +1,4 @@
-package com.baro13.readfast.domain.model;
+package com.baro13.readfast.admin.authlog.domain.model;
 
 import java.time.Instant;
 import lombok.AccessLevel;

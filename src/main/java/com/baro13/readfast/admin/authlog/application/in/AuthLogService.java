@@ -1,10 +1,11 @@
-package com.baro13.readfast.application.in.authlog;
+package com.baro13.readfast.admin.authlog.application.in;
 
-import com.baro13.readfast.adapter.in.controller.authlog.dto.AuthSearchCondition;
-import com.baro13.readfast.application.out.RetentionPolicyProvider;
-import com.baro13.readfast.domain.model.AuthLog;
-import com.baro13.readfast.domain.port.AuthLogArchiveReader;
-import com.baro13.readfast.domain.port.AuthLogDbReader;
+import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
+import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
+import com.baro13.readfast.admin.authlog.domain.port.AuthLogArchiveReader;
+import com.baro13.readfast.admin.authlog.domain.port.AuthLogDbReader;
+import com.baro13.readfast.admin.authlog.domain.port.DataRetentionPolicyProvider;
+import com.baro13.readfast.admin.policy.domain.model.DataRetentionPolicy;
 import com.baro13.readfast.global.common.TimeZoneConstants;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -26,10 +27,12 @@ public class AuthLogService {
     
     private final AuthLogDbReader authLogDbReader;
     private final AuthLogArchiveReader authLogArchiveReader;
-    private final RetentionPolicyProvider retentionPolicyProvider;
-    
+    private final DataRetentionPolicyProvider dataRetentionPolicyProvider;
+
     public Page<AuthLog> search(AuthSearchCondition condition) {
-        Instant dbCutoffDate = Instant.now().minus(retentionPolicyProvider.getDbRetentionDays(), ChronoUnit.DAYS);
+        DataRetentionPolicy policy = dataRetentionPolicyProvider.getCurrentPolicy();
+        int dbRetentionDays = policy.getRetentionRule().getDbRetentionDays();
+        Instant dbCutoffDate = Instant.now().minus(dbRetentionDays, ChronoUnit.DAYS);
         
         // DB에서 조회할 수 있는 기간인지 확인
         if (condition.getStartDate() != null && condition.getStartDate().isBefore(dbCutoffDate)) {

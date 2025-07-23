@@ -1,8 +1,9 @@
-package com.baro13.readfast.adapter.out.authlog.db.querydsl;
+package com.baro13.readfast.admin.authlog.adapter.out.db.querydsl;
 
-import static com.baro13.readfast.adapter.out.db.jpa.QAuthLogEntity.authLogEntity;
 
-import com.baro13.readfast.adapter.in.controller.authlog.dto.AuthSearchCondition;
+import static com.baro13.readfast.admin.authlog.adapter.out.db.jpa.entity.QAuthLogEntity.authLogEntity;
+
+import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import java.time.Instant;

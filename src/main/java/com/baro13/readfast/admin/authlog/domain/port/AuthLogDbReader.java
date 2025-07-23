@@ -1,7 +1,7 @@
-package com.baro13.readfast.domain.port;
+package com.baro13.readfast.admin.authlog.domain.port;
 
-import com.baro13.readfast.adapter.in.controller.authlog.dto.AuthSearchCondition;
-import com.baro13.readfast.domain.model.AuthLog;
+import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
+import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;

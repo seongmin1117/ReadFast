@@ -1,8 +1,8 @@
-package com.baro13.readfast.application.in.authlog.pre;
+package com.baro13.readfast.admin.authlog.application.in.pre;
 
-import com.baro13.readfast.adapter.in.controller.authlog.dto.AuthSearchCondition;
-import com.baro13.readfast.domain.model.AuthLog;
-import com.baro13.readfast.domain.port.AuthLogDbReader;
+import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
+import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
+import com.baro13.readfast.admin.authlog.domain.port.AuthLogDbReader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;

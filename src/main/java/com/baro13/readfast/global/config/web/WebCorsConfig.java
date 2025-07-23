@@ -1,4 +1,4 @@
-package com.baro13.readfast.adapter.in.controller.config;
+package com.baro13.readfast.global.config.web;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;

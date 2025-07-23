@@ -1,7 +1,7 @@
-package com.baro13.readfast.adapter.out.authlog.db.jpa.mapper;
+package com.baro13.readfast.admin.authlog.adapter.out.db.jpa.mapper;
 
-import com.baro13.readfast.adapter.out.authlog.db.jpa.entity.AuthLogEntity;
-import com.baro13.readfast.domain.model.AuthLog;
+import com.baro13.readfast.admin.authlog.adapter.out.db.jpa.entity.AuthLogEntity;
+import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 
 public final class AuthLogMapper {
 

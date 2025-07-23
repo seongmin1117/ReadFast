@@ -1,4 +1,4 @@
-package com.baro13.readfast.admin.authlog.adapter.out.archive;
+package com.baro13.readfast.admin.authlog.adapter.out.archive.storage;
 
 import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy;
