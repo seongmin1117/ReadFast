@@ -3,6 +3,7 @@ package com.baro13.readfast.admin.authlog.application.in;
 import com.baro13.readfast.admin.authlog.domain.port.BatchExecution;
 import com.baro13.readfast.admin.authlog.domain.port.BatchExecution.BatchExecutionResult;
 import com.baro13.readfast.admin.authlog.domain.port.DataRetentionPolicyProvider;
+import com.baro13.readfast.admin.authlog.domain.exception.ArchivingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,7 +34,7 @@ public class ArchivingService {
             
         } catch (Exception e) {
             log.error("아카이빙 배치 서비스 실행 중 예외 발생", e);
-            throw new RuntimeException("배치 실행 중 오류 발생", e);
+            throw new ArchivingException("아카이빙 배치 실행 실패", e);
         }
     }
 }

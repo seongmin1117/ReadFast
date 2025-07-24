@@ -39,9 +39,9 @@ public class AuthLogController {
             return ResponseEntity.ok(ApiResponse.success(data));
             
         } catch (Exception e) {
-            log.error("인증로그 검색 실패", e);
+            log.error("인증로그 검색 실패. 조건: {}", condition, e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error("인증로그 검색 실패: " + e.getMessage()));
+                    .body(ApiResponse.error("인증로그 검색 중 오류가 발생했습니다."));
         }
     }
 
@@ -58,9 +58,9 @@ public class AuthLogController {
             return ResponseEntity.ok(ApiResponse.success(data));
             
         } catch (Exception e) {
-            log.error("인증로그 검색 V2 실패", e);
+            log.error("인증로그 검색 V2 실패. 조건: {}", condition, e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error("인증로그 검색 V2 실패: " + e.getMessage()));
+                    .body(ApiResponse.error("인증로그 검색 중 오류가 발생했습니다."));
         }
     }
 

@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import com.baro13.readfast.global.common.TimeZoneConstants;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,11 @@ public class BatchExecutionImpl implements BatchExecution {
     private final ArchiveMetadataMapper archiveMetadataMapper;
     
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    
+    // Configuration constants
+    private static final int MAX_RECORDS_PER_BATCH = 50_000;
+    private static final int CHUNK_DELAY_MS = 100;
+    private static final int DEFAULT_CHUNK_SIZE = 1000;
 
     @Override
     public BatchExecutionResult executeArchivingBatch(DataRetentionPolicy policy) {
@@ -56,7 +62,7 @@ public class BatchExecutionImpl implements BatchExecution {
             var hasMoreData = true;
             var chunkNumber = 1;
             
-            while (hasMoreData && totalProcessed < 50000) { // 최대 5만건 제한
+            while (hasMoreData && totalProcessed < MAX_RECORDS_PER_BATCH) {
                 log.info("배치 청크 #{} 처리 시작", chunkNumber);
                 
                 var targetData = authLogDbReader.findOlderThan(cutoffDate, batchSize);
@@ -76,19 +82,17 @@ public class BatchExecutionImpl implements BatchExecution {
                 totalArchived += chunkResult.archivedCount();
                 totalDeleted += chunkResult.deletedCount();
                 
-                // 메모리 정리
-                targetData.clear();
-                System.gc(); // 힌트 제공
-                
                 chunkNumber++;
                 
                 // 청크 사이 잠시 대기 (시스템 부하 방지)
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.warn("배치 처리 중 인터럽트 발생");
-                    break;
+                if (chunkNumber > 2) { // 첫 번째 청크는 대기하지 않음
+                    try {
+                        Thread.sleep(CHUNK_DELAY_MS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("배치 처리 중 인터럽트 발생");
+                        break;
+                    }
                 }
             }
             
@@ -143,7 +147,7 @@ public class BatchExecutionImpl implements BatchExecution {
             return new ChunkResult(targetData.size(), targetData.size(), deletedCount);
             
         } catch (Exception e) {
-            log.error("청크 #{} 처리 실패: {}", chunkNumber, e.getMessage(), e);
+            log.error("청크 #{} 처리 실패. 데이터 건수: {}", chunkNumber, targetData.size(), e);
             return new ChunkResult(targetData.size(), 0, 0);
         }
     }
@@ -166,7 +170,10 @@ public class BatchExecutionImpl implements BatchExecution {
         try {
             // 중복 방지: 이미 존재하는 메타데이터인지 확인
             var dateRange = calculateDateRange(targetData);
-            var existingMetadata = archiveMetadataRepository.findByExactDateRange(dateRange.startDate(), dateRange.endDate());
+            var existingMetadata = archiveMetadataRepository.findByExactDateRange(
+                dateRange.startDate(), 
+                dateRange.endDate()
+            );
             
             if (!existingMetadata.isEmpty()) {
                 log.warn("이미 아카이브된 데이터 범위입니다. 기간: {} ~ {}, 기존 메타데이터 수: {}", 
@@ -207,10 +214,10 @@ public class BatchExecutionImpl implements BatchExecution {
     private String calculateArchiveFilePath(DataRetentionPolicy policy, List<AuthLog> targetData, DataStorage storage) {
         var archiveBasePath = policy.getArchivingStrategy().getArchiveBasePath();
         
-        // 데이터의 실제 날짜 범위를 기반으로 파일명 생성
+        // 데이터의 실제 날짜 범위를 기반으로 파일명 생성 (TimeZone 일관성 적용)
         var dateRange = calculateDateRange(targetData);
-        var startDateStr = dateRange.startDate().atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DATE_FORMATTER);
-        var endDateStr = dateRange.endDate().atZone(java.time.ZoneId.systemDefault()).toLocalDate().format(DATE_FORMATTER);
+        var startDateStr = dateRange.startDate().atZone(TimeZoneConstants.APPLICATION_ZONE).toLocalDate().format(DATE_FORMATTER);
+        var endDateStr = dateRange.endDate().atZone(TimeZoneConstants.APPLICATION_ZONE).toLocalDate().format(DATE_FORMATTER);
         
         // 날짜 범위가 같은 경우 (하루치 데이터)
         String fileName;
@@ -240,21 +247,21 @@ public class BatchExecutionImpl implements BatchExecution {
     }
     
     /**
-     * 데이터의 날짜 범위 계산
+     * 데이터의 날짜 범위 계산 (TimeZone 일관성 적용)
      */
-    private DateRange calculateDateRange(java.util.List<com.baro13.readfast.admin.authlog.domain.model.AuthLog> targetData) {
+    private DateRange calculateDateRange(List<AuthLog> targetData) {
         if (targetData.isEmpty()) {
             var now = Instant.now();
             return new DateRange(now, now);
         }
         
-        var minDate = targetData.stream()
-            .map(com.baro13.readfast.admin.authlog.domain.model.AuthLog::getDate)
+        var minDate = targetData.parallelStream()
+            .map(AuthLog::getDate)
             .min(Instant::compareTo)
             .orElse(Instant.now());
             
-        var maxDate = targetData.stream()
-            .map(com.baro13.readfast.admin.authlog.domain.model.AuthLog::getDate)
+        var maxDate = targetData.parallelStream()
+            .map(AuthLog::getDate)
             .max(Instant::compareTo)
             .orElse(Instant.now());
             
