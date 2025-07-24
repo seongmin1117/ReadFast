@@ -1,19 +1,35 @@
 spring:
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3310/read-fast?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: root
-    password: 1234
-    # HikariCP 연결 풀 최적화
-    hikari:
-      maximum-pool-size: 20          # 최대 연결 수
-      minimum-idle: 5                # 최소 유휴 연결 수
-      idle-timeout: 300000          # 유휴 연결 타임아웃 (5분)
-      max-lifetime: 1200000         # 연결 최대 수명 (20분)
-      connection-timeout: 20000     # 연결 타임아웃 (20초)
-      validation-timeout: 5000      # 연결 검증 타임아웃 (5초)
-      leak-detection-threshold: 60000  # 연결 누수 감지 임계값 (60초)
-      pool-name: ReadFastHikariPool
+    master:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3310/read-fast?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: root
+      password: 1234
+      hikari:
+        maximum-pool-size: 20
+        minimum-idle: 5
+        idle-timeout: 300000
+        max-lifetime: 1200000
+        connection-timeout: 20000
+        validation-timeout: 5000
+        leak-detection-threshold: 60000
+        pool-name: MasterHikariPool
+
+    slave:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://localhost:3311/read-fast?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      username: root
+      password: 1234
+      hikari:
+        maximum-pool-size: 10
+        minimum-idle: 3
+        idle-timeout: 300000
+        max-lifetime: 1200000
+        connection-timeout: 20000
+        validation-timeout: 5000
+        leak-detection-threshold: 60000
+        pool-name: SlaveHikariPool
+
   jpa:
     database-platform: org.hibernate.dialect.MySQL8Dialect
     properties:

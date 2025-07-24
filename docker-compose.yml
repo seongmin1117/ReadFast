@@ -12,6 +12,39 @@ services:
       MYSQL_DATABASE: read-fast
     volumes:
       - rf-mysql-data:/var/lib/mysql
+      - ./mysql/init/master:/docker-entrypoint-initdb.d
+    command:
+      --server-id=1
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --default-authentication-plugin=mysql_native_password
+
+  mysql-slave:
+    image: mysql:8.0
+    container_name: rf-mysql-slave
+    restart: always
+    ports:
+      - "3311:3306"
+    depends_on:
+      - mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: read-fast
+    volumes:
+      - rf-mysql-slave-data:/var/lib/mysql
+      - ./mysql/init/slave:/docker-entrypoint-initdb.d
+    command:
+      --server-id=2
+      --relay-log=relay-log
+      --read-only=1
+      --log-bin=mysql-bin
+      --binlog-format=ROW
+      --gtid-mode=ON
+      --enforce-gtid-consistency=ON
+      --default-authentication-plugin=mysql_native_password
 
 volumes:
   rf-mysql-data:
+  rf-mysql-slave-data:

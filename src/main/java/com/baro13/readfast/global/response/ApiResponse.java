@@ -2,6 +2,7 @@ package com.baro13.readfast.global.response;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import com.baro13.readfast.global.common.TimeZoneConstants;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,7 +21,7 @@ public class ApiResponse<T> {
     private T data;
 
     private static String getCurrentDateTime() {
-        return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        return LocalDateTime.now(TimeZoneConstants.APPLICATION_ZONE).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
     public static <T> ApiResponse<T> success(T data) {
