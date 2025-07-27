@@ -1,8 +1,8 @@
 package com.baro13.readfast.admin.authlog.adapter.out.db;
 
 import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.AuthSearchCondition;
-import com.baro13.readfast.admin.authlog.adapter.out.db.querydsl.AuthQueryDslRepositoryV1;
-import com.baro13.readfast.admin.authlog.adapter.out.db.querydsl.AuthQueryDslRepositoryV2;
+import com.baro13.readfast.admin.authlog.adapter.out.db.querydsl.AuthArchiveRepository;
+import com.baro13.readfast.admin.authlog.adapter.out.db.querydsl.AuthQueryDslRepository;
 import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import com.baro13.readfast.admin.authlog.domain.port.AuthLogDbReader;
 import com.baro13.readfast.global.logging.LogQueryTime;
@@ -16,30 +16,37 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class AuthLogDbReaderImpl implements AuthLogDbReader {
-    private final AuthQueryDslRepositoryV1 authQueryDslRepositoryV1;
-    private final AuthQueryDslRepositoryV2 authQueryDslRepositoryV2;
+    private final AuthArchiveRepository archiveRepository; // 아카이빙 전용
+    private final AuthQueryDslRepository authQueryRepository; // 메인 검색용
 
     @Override
-    @LogQueryTime("V1")
-    public Page<AuthLog> searchV1(AuthSearchCondition condition, Pageable pageable) {
-        return authQueryDslRepositoryV1.search(condition, pageable);
+    @LogQueryTime("AuthSearch")
+    public Page<AuthLog> search(AuthSearchCondition condition, Pageable pageable) {
+        return authQueryRepository.search(condition, pageable);
     }
 
     @Override
-    @LogQueryTime("V2")
-    public Page<AuthLog> searchV2(AuthSearchCondition condition, Pageable pageable) {
-        return authQueryDslRepositoryV2.search(condition, pageable);
+    @LogQueryTime("ArchiveCursor")
+    public List<AuthLog> findOlderThan(LocalDateTime cutoffDate, int batchSize, Long lastProcessedId) {
+        return archiveRepository.findOlderThan(cutoffDate, batchSize, lastProcessedId);
     }
-
+    
     @Override
-    @LogQueryTime("V3")
-    public Page<AuthLog> searchV3(AuthSearchCondition condition, Pageable pageable) {
-        return authQueryDslRepositoryV2.search(condition, pageable);
+    @LogQueryTime("ArchiveSnapshot")
+    public List<AuthLog> findOlderThanWithSnapshot(LocalDateTime cutoffDate, int limit, Long lastProcessedId) {
+        // 스냅샷 격리 수준에서 조회 (MySQL의 경우 REPEATABLE READ)
+        return archiveRepository.findOlderThanWithSnapshot(cutoffDate, limit, lastProcessedId);
     }
-
+    
     @Override
-    @LogQueryTime("Archive")
-    public List<AuthLog> findOlderThan(LocalDateTime cutoffDate, int batchSize) {
-        return authQueryDslRepositoryV1.findOlderThan(cutoffDate, batchSize);
+    @LogQueryTime("ArchiveDelete")
+    public int deleteByIds(List<Long> ids) {
+        return archiveRepository.deleteByIds(ids);
+    }
+    
+    @Override
+    @LogQueryTime("ArchiveCount")
+    public long countOlderThan(LocalDateTime cutoffDate) {
+        return archiveRepository.countOlderThan(cutoffDate);
     }
 }

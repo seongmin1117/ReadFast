@@ -41,8 +41,8 @@ public class AuthLogService {
         }
         
         // DB에서만 조회
-        log.info("통합 조회 V3 실행: DB에서만 조회");
-        return authLogDbReader.searchV3(condition, createPageable(condition));
+        log.info("통합 조회 실행: DB에서만 조회");
+        return authLogDbReader.search(condition, createPageable(condition));
     }
 
     public Page<AuthLog> searchV2(AuthSearchCondition condition) {
@@ -56,9 +56,9 @@ public class AuthLogService {
             return searchFromStorageAndDbV2(condition, dbCutoffDate);
         }
         
-        // DB에서만 조회 (V2 방식)
-        log.info("통합 조회 V3-V2 실행: DB에서만 조회 (커서 기반)");
-        return authLogDbReader.searchV2(condition, createPageable(condition));
+        // DB에서만 조회 (커서 기반)
+        log.info("통합 조회 V2 실행: DB에서만 조회 (커서 기반)");
+        return authLogDbReader.search(condition, createPageable(condition));
     }
 
     private Page<AuthLog> searchFromStorageAndDbV2(AuthSearchCondition condition, Instant dbCutoffDate) {
@@ -81,7 +81,7 @@ public class AuthLogService {
         // DB에서 조회 (V2 방식)
         if (condition.getEndDate() == null || condition.getEndDate().isAfter(dbCutoffDate)) {
             AuthSearchCondition dbCondition = createDbCondition(condition, dbCutoffDate);
-            Page<AuthLog> dbResults = authLogDbReader.searchV2(dbCondition, createPageable(condition));
+            Page<AuthLog> dbResults = authLogDbReader.search(dbCondition, createPageable(condition));
             allResults.addAll(dbResults.getContent());
             log.info("DB에서 {}개 레코드 조회 완료 (V2)", dbResults.getContent().size());
         }
@@ -133,7 +133,7 @@ public class AuthLogService {
         // DB에서 조회 (필요한 경우)
         if (condition.getEndDate() == null || condition.getEndDate().isAfter(dbCutoffDate)) {
             AuthSearchCondition dbCondition = createDbCondition(condition, dbCutoffDate);
-            Page<AuthLog> dbResults = authLogDbReader.searchV3(dbCondition, createPageable(condition));
+            Page<AuthLog> dbResults = authLogDbReader.search(dbCondition, createPageable(condition));
             allResults.addAll(dbResults.getContent());
             log.info("DB에서 {}개 레코드 조회 완료", dbResults.getContent().size());
         }

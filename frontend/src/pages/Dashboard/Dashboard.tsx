@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { PageContainer, Card } from '@/components/layout';
 import { Button } from '@/components/ui';
-import { useRecentAuthLogs } from '@/hooks/useAuthLogs';
+import { useAuthLogs } from '@/hooks/useAuthLogs';
 import { useArchivingStats } from '@/hooks/useArchiving';
 import { formatNumber, formatFileSize, formatDateTime } from '@/utils/format.utils';
 import { cn } from '@/utils/cn.utils';
@@ -71,7 +71,15 @@ const StatCard: React.FC<StatCardProps> = ({
 };
 
 export const Dashboard: React.FC = () => {
-  const { logs: recentLogs, isLoading: logsLoading } = useRecentAuthLogs(5);
+  const { logs: recentLogs, isLoading: logsLoading } = useAuthLogs({
+    initialCondition: {
+      page: 0,
+      size: 5,
+      sortBy: 'date',
+      direction: 'desc'
+    },
+    autoSearch: true
+  });
   const { stats, storageUsage, isLoading: statsLoading } = useArchivingStats();
 
   // 현재 시간 기준 통계 (실제로는 API에서 받아온 데이터 사용)
@@ -271,7 +279,7 @@ export const Dashboard: React.FC = () => {
           </div>
         ) : recentLogs.length > 0 ? (
           <div className="space-y-3">
-            {recentLogs.map((log) => (
+            {recentLogs.map((log: any) => (
               <div key={log.id} className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg transition-colors">
                 <div className={cn(
                   'w-10 h-10 rounded-full flex items-center justify-center',

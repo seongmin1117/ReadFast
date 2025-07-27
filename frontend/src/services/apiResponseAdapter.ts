@@ -6,8 +6,7 @@ import type {
   BackendAuthLog, 
   AuthLog, 
   BackendPageResponse, 
-  PageResponse,
-  ApiVersion
+  PageResponse
 } from '@/types/auth.types';
 
 /**
@@ -58,10 +57,12 @@ export class ApiResponseAdapter {
 
     return {
       content,
-      page: backendPageResponse.page,
+      number: backendPageResponse.page, // 백엔드 page -> 프론트엔드 number
       size: backendPageResponse.size,
       totalElements: backendPageResponse.totalElements,
       totalPages: backendPageResponse.totalPages,
+      last: !backendPageResponse.hasNext, // hasNext의 반대값
+      first: backendPageResponse.page === 0, // 첫 번째 페이지 여부
       hasNext: backendPageResponse.hasNext
     };
   }
@@ -99,27 +100,13 @@ export class ApiResponseAdapter {
   }
 
   /**
-   * API 버전별 응답 어댑터
+   * 페이지네이션 API 응답 어댑터
    */
   static adaptVersionedResponse(
-    backendResponse: BackendApiResponse<BackendPageResponse<BackendAuthLog>>,
-    version: ApiVersion
+    backendResponse: BackendApiResponse<BackendPageResponse<BackendAuthLog>>
   ): ApiResponse<PageResponse<AuthLog>> {
     const adaptedApiResponse = this.adaptApiResponse(backendResponse);
     const adaptedPageResponse = this.adaptPageResponse(backendResponse.data);
-
-    // 버전별 특별 처리
-    switch (version) {
-      case 'v1':
-        // V1은 정확한 totalElements를 제공
-        break;
-      case 'v2':
-        // V2는 커서 기반이므로 totalElements가 부정확할 수 있음
-        break;
-      case 'v3':
-        // V3는 통합 조회이므로 특별한 처리가 필요할 수 있음
-        break;
-    }
 
     return {
       ...adaptedApiResponse,
@@ -127,24 +114,6 @@ export class ApiResponseAdapter {
     };
   }
 
-  /**
-   * 성능 측정을 위한 응답 시간 추출
-   */
-  static extractPerformanceMetrics(
-    backendResponse: BackendApiResponse<any>,
-    startTime: number,
-    version: ApiVersion
-  ) {
-    const endTime = Date.now();
-    const responseTime = endTime - startTime;
-
-    return {
-      version,
-      responseTime,
-      totalRecords: backendResponse.data?.totalElements || 0,
-      timestamp: new Date(endTime)
-    };
-  }
 }
 
 /**

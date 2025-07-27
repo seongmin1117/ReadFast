@@ -38,7 +38,6 @@ public class AuthSearchCondition {
              message = "정렬 방향은 asc 또는 desc여야 합니다")
     private String direction;
 
-    // V2 추가
     @Min(value = 1, message = "커서 ID는 1 이상이어야 합니다")
     private Long cursorId;
     private Instant cursorDate;

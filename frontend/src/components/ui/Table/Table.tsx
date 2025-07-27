@@ -84,9 +84,16 @@ export function Table<T = any>({
                 >
                   {columns.map((column, colIndex) => {
                     const value = record[column.key as keyof T];
-                    const cellContent = column.render 
-                      ? column.render(value, record, rowIndex)
-                      : String(value || '');
+                    let cellContent;
+                    
+                    try {
+                      cellContent = column.render 
+                        ? column.render(value, record, rowIndex)
+                        : String(value || '');
+                    } catch (error) {
+                      console.error(`❌ 컬럼 ${String(column.key)} 렌더링 에러:`, error, { value, record, rowIndex, column });
+                      cellContent = '렌더링 오류';
+                    }
 
                     return (
                       <td
