@@ -80,7 +80,7 @@ data:
     db-retention-days: 90        # DB에 보관할 일수
     total-retention-days: 365    # 전체 보관 일수
     batch-size: 1000             # 배치 처리 크기
-    archive-base-path: "./archive-data"  # 아카이브 파일 저장 경로
+    archive-base-path: "/Users/seongmin/project/claude/ReadFast/archive-data"  # 아카이브 파일 저장 경로
     archive-file-format: "yyyy-MM-dd"           # 아카이브 파일명 형식
     enable-archiving: true       # 아카이빙 활성화
     enable-data-deletion: true   # 데이터 삭제 활성화

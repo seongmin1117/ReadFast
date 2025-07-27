@@ -12,7 +12,7 @@ export interface TableColumn<T = any> {
   width?: string | number;
   sortable?: boolean;
   filterable?: boolean;
-  render?: (value: any, record: T, index: number) => React.ReactNode;
+  render?: (record: T, index: number) => React.ReactNode;
   align?: 'left' | 'center' | 'right';
 }
 

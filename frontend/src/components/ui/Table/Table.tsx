@@ -1,6 +1,6 @@
 import React from 'react';
-import { cn } from '@/utils/cn.utils';
-import type { TableColumn } from '@/types/common.types';
+import {cn} from '@/utils/cn.utils';
+import type {TableColumn} from '@/types/common.types';
 
 interface TableProps<T = any> {
   columns: TableColumn<T>[];
@@ -88,7 +88,7 @@ export function Table<T = any>({
                     
                     try {
                       cellContent = column.render 
-                        ? column.render(value, record, rowIndex)
+                        ? column.render(record, rowIndex)
                         : String(value || '');
                     } catch (error) {
                       console.error(`❌ 컬럼 ${String(column.key)} 렌더링 에러:`, error, { value, record, rowIndex, column });
