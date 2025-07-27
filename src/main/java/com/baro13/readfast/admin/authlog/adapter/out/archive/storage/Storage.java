@@ -9,7 +9,7 @@ import java.util.List;
  * 기본 스토리지 인터페이스
  * 모든 스토리지 구현체가 구현해야 하는 기본 CRUD 연산을 정의
  */
-public interface DataStorage {
+public interface Storage {
     
     /**
      * 인증 로그 데이터를 특정 날짜로 저장

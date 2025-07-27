@@ -1,8 +1,11 @@
 package com.baro13.readfast.admin.authlog.adapter.out.archive.storage;
 
+import com.baro13.readfast.admin.authlog.adapter.out.archive.compression.CompressionFactory;
 import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import com.baro13.readfast.admin.authlog.domain.port.DataRetentionPolicyProvider;
 import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.ArchiveFormat;
+import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.CompressionType;
+import com.baro13.readfast.global.common.TimeZoneConstants;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,7 +17,6 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import com.baro13.readfast.global.common.TimeZoneConstants;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +26,10 @@ import org.springframework.stereotype.Repository;
 @Slf4j
 @Repository
 @RequiredArgsConstructor
-public class SqliteStorage implements DataStorage {
+public class SqliteStorage implements Storage {
 
     private final DataRetentionPolicyProvider policyProvider;
+    private final CompressionFactory compressionFactory;
     
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     
@@ -113,6 +116,9 @@ public class SqliteStorage implements DataStorage {
                             dbPath, authLogs.size(), insertedCount, skippedCount);
                 }
                 
+                // 압축 적용 (정책에 따라)
+                applyCompressionIfEnabled(dbPath);
+                
             } catch (SQLException e) {
                 log.error("SQLite 데이터 저장 실패. 건수: {}", authLogs.size(), e);
                 throw new RuntimeException("SQLite 데이터 저장 중 오류 발생", e);
@@ -127,15 +133,18 @@ public class SqliteStorage implements DataStorage {
     public List<AuthLog> retrieve(LocalDate date) {
         var dbPath = getDbPath(date);
         
-        if (!Files.exists(dbPath)) {
-            log.debug("SQLite 파일이 존재하지 않습니다. 파일: {}", dbPath);
+        // 압축 해제 (필요한 경우)
+        var actualDbPath = decompressIfNeeded(dbPath);
+        
+        if (!Files.exists(actualDbPath)) {
+            log.debug("SQLite 파일이 존재하지 않습니다. 파일: {}", actualDbPath);
             return List.of();
         }
         
         var datePrefix = date.format(DATE_FORMATTER);
         var authLogs = new ArrayList<AuthLog>();
         
-        try (var connection = getConnection(dbPath);
+        try (var connection = getConnection(actualDbPath);
              var statement = connection.prepareStatement(SELECT_BY_DATE_SQL)) {
             
             statement.setString(1, datePrefix + "%");
@@ -146,7 +155,7 @@ public class SqliteStorage implements DataStorage {
                 }
             }
             
-            log.debug("SQLite에서 인증 로그 조회 완료. 파일: {}, 건수: {}", dbPath, authLogs.size());
+            log.debug("SQLite에서 인증 로그 조회 완료. 파일: {}, 건수: {}", actualDbPath, authLogs.size());
             return authLogs;
             
         } catch (SQLException e) {
@@ -174,19 +183,37 @@ public class SqliteStorage implements DataStorage {
     @Override
     public boolean exists(LocalDate date) {
         var dbPath = getDbPath(date);
-        return Files.exists(dbPath) && Files.isRegularFile(dbPath);
+        var compressedPath = getCompressedPath(dbPath);
+        
+        // 원본 파일 또는 압축된 파일이 존재하는지 확인
+        return (Files.exists(dbPath) && Files.isRegularFile(dbPath)) ||
+               (Files.exists(compressedPath) && Files.isRegularFile(compressedPath));
     }
 
     @Override
     public void delete(LocalDate date) {
         var dbPath = getDbPath(date);
+        var compressedPath = getCompressedPath(dbPath);
         
         try {
+            var deleted = false;
+            
+            // 원본 파일 삭제
             if (Files.exists(dbPath)) {
                 Files.delete(dbPath);
                 log.info("SQLite 파일 삭제 완료. 파일: {}", dbPath);
-            } else {
-                log.debug("삭제할 SQLite 파일이 존재하지 않습니다. 파일: {}", dbPath);
+                deleted = true;
+            }
+            
+            // 압축된 파일 삭제
+            if (Files.exists(compressedPath)) {
+                Files.delete(compressedPath);
+                log.info("압축된 SQLite 파일 삭제 완료. 파일: {}", compressedPath);
+                deleted = true;
+            }
+            
+            if (!deleted) {
+                log.debug("삭제할 SQLite 파일이 존재하지 않습니다. 경로: {} 또는 {}", dbPath, compressedPath);
             }
         } catch (IOException e) {
             log.error("SQLite 파일 삭제 실패. 날짜: {}", date, e);
@@ -277,5 +304,108 @@ public class SqliteStorage implements DataStorage {
                      resultSet.getLong("id"), resultSet.getString("date"), e);
             throw new SQLException("AuthLog 매핑 중 오류 발생", e);
         }
+    }
+    
+    /**
+     * 압축 적용 (정책에 따라)
+     */
+    private void applyCompressionIfEnabled(Path dbPath) {
+        try {
+            var compressionType = policyProvider.getCurrentPolicy()
+                .getArchivingStrategy()
+                .getCompressionType();
+                
+            if (compressionType == CompressionType.NONE) {
+                log.debug("압축이 비활성화되어 있습니다. 파일: {}", dbPath);
+                return;
+            }
+            
+            if (!Files.exists(dbPath)) {
+                log.warn("압축할 파일이 존재하지 않습니다. 파일: {}", dbPath);
+                return;
+            }
+            
+            // 압축 실행
+            var compression = compressionFactory.resolve();
+            var originalData = Files.readAllBytes(dbPath);
+            var compressedData = compression.compress(originalData);
+            
+            // 압축된 파일 저장
+            var compressedPath = getCompressedPath(dbPath);
+            createDirectoryIfNotExists(compressedPath.getParent());
+            Files.write(compressedPath, compressedData);
+            
+            // 원본 파일 삭제 (압축 성공 후)
+            Files.delete(dbPath);
+            
+            var originalSize = originalData.length;
+            var compressedSize = compressedData.length;
+            var compressionRatio = (double) compressedSize / originalSize * 100;
+            
+            log.info("SQLite 파일 압축 완료. 원본: {}bytes, 압축: {}bytes, 비율: {:.1f}%, 파일: {}", 
+                    originalSize, compressedSize, compressionRatio, compressedPath);
+                    
+        } catch (Exception e) {
+            log.error("SQLite 파일 압축 실패. 파일: {}", dbPath, e);
+            // 압축 실패해도 원본 파일은 유지 (데이터 보호)
+        }
+    }
+    
+    /**
+     * 압축 해제 (필요한 경우)
+     */
+    private Path decompressIfNeeded(Path dbPath) {
+        try {
+            var compressionType = policyProvider.getCurrentPolicy()
+                .getArchivingStrategy()
+                .getCompressionType();
+                
+            if (compressionType == CompressionType.NONE) {
+                return dbPath; // 압축 사용하지 않음
+            }
+            
+            var compressedPath = getCompressedPath(dbPath);
+            
+            // 압축된 파일이 존재하는 경우
+            if (Files.exists(compressedPath)) {
+                // 원본 파일이 이미 존재하면 그대로 사용
+                if (Files.exists(dbPath)) {
+                    log.debug("원본 파일이 이미 존재합니다. 파일: {}", dbPath);
+                    return dbPath;
+                }
+                
+                // 압축 해제 실행
+                var compression = compressionFactory.resolve();
+                var compressedData = Files.readAllBytes(compressedPath);
+                var originalData = compression.decompress(compressedData);
+                
+                // 압축 해제된 파일 저장
+                createDirectoryIfNotExists(dbPath.getParent());
+                Files.write(dbPath, originalData);
+                
+                log.info("SQLite 파일 압축 해제 완료. 압축: {}bytes, 원본: {}bytes, 파일: {}", 
+                        compressedData.length, originalData.length, dbPath);
+                        
+                return dbPath;
+            }
+            
+            // 압축된 파일도 원본 파일도 없는 경우
+            return dbPath;
+            
+        } catch (Exception e) {
+            log.error("SQLite 파일 압축 해제 실패. 파일: {}", dbPath, e);
+            return dbPath; // 실패해도 원본 경로 반환
+        }
+    }
+    
+    /**
+     * 압축된 파일 경로 생성
+     */
+    private Path getCompressedPath(Path originalPath) {
+        var compressionType = policyProvider.getCurrentPolicy()
+            .getArchivingStrategy()
+            .getCompressionType();
+        
+        return Paths.get(originalPath.toString() + compressionType.getExtension());
     }
 }
