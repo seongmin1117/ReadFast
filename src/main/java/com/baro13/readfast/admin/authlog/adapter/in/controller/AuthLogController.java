@@ -25,7 +25,6 @@ public class AuthLogController {
 
     private final AuthLogService authLogService;
 
-
     /**
      * 인증로그 검색 (통합 조회: DB + 스토리지)
      */
