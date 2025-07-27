@@ -40,6 +40,5 @@ out/
 archive-data/*
 !archive-data/.gitkeep
 
-### Metabase ###
-metabase-data/
-metabase.db*
+### Python ###
+/scripts

@@ -230,9 +230,11 @@ public class SqliteStorage implements Storage {
         var archiveBasePath = policyProvider.getCurrentPolicy()
             .getArchivingStrategy()
             .getArchiveBasePath();
-        
+        log.info("archiveBasePath: {}", archiveBasePath);
         var dateDir = date.format(DATE_FORMATTER);
+        log.info("dateDir: {}", dateDir);
         var fileName = dateDir + ".sqlite";
+        log.info("fileName: {}", fileName);
         
         return Paths.get(archiveBasePath, dateDir, fileName);
     }
@@ -243,8 +245,12 @@ public class SqliteStorage implements Storage {
             Class.forName("org.sqlite.JDBC");
             
             // 경로 검증 및 정규화
-            var normalizedPath = dbPath.toAbsolutePath().normalize();
-            if (!normalizedPath.toString().contains(policyProvider.getCurrentPolicy().getArchivingStrategy().getArchiveBasePath())) {
+            Path normalizedPath = dbPath.toAbsolutePath().normalize();
+            Path archiveBase = Paths.get(policyProvider.getCurrentPolicy().getArchivingStrategy().getArchiveBasePath())
+                .toAbsolutePath()
+                .normalize();
+
+            if (!normalizedPath.startsWith(archiveBase)) {
                 throw new SQLException("Invalid database path: path traversal detected");
             }
             
