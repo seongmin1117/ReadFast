@@ -20,8 +20,20 @@ export const formatDate = (date: string | Date, dateFormat = DEFAULT_DATE_FORMAT
 };
 
 // 날짜시간 포맷팅
-export const formatDateTime = (date: string | Date): string => {
-  return formatDate(date, DEFAULT_DATETIME_FORMAT);
+export const formatDateTime = (date: string | Date | null | undefined): string => {
+  if (!date) return '알 수 없음';
+  
+  try {
+    const parsedDate = typeof date === 'string' ? parseISO(date) : date;
+    if (!isValid(parsedDate)) {
+      console.warn('유효하지 않은 날짜:', date);
+      return '유효하지 않은 날짜';
+    }
+    return format(parsedDate, DEFAULT_DATETIME_FORMAT, { locale: ko });
+  } catch (error) {
+    console.error('날짜 파싱 에러:', error, date);
+    return '날짜 파싱 오류';
+  }
 };
 
 // ISO 문자열로 변환

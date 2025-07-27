@@ -20,8 +20,8 @@ export interface AuthLog {
 
 // 검색 조건 타입
 export interface AuthSearchCondition {
-  startDate?: string;
-  endDate?: string;
+  startDate?: Date;
+  endDate?: Date;
   device?: string;
   userId?: string;
   result?: string;
@@ -30,9 +30,9 @@ export interface AuthSearchCondition {
   size?: number;
   sortBy?: 'id' | 'date' | 'device' | 'userId' | 'result' | 'endpoint';
   direction?: 'asc' | 'desc';
-  // V2 커서 기반 페이지네이션
+  // 커서 기반 페이지네이션
   cursorId?: number;
-  cursorDate?: string;
+  cursorDate?: Date;
 }
 
 // 백엔드 페이지 응답 타입 (실제 형식)
@@ -48,10 +48,12 @@ export interface BackendPageResponse<T> {
 // 프론트엔드 페이지 응답 타입
 export interface PageResponse<T> {
   content: T[];
-  page: number;
+  number: number; // 현재 페이지 번호 (0부터 시작)
   size: number;
   totalElements: number;
   totalPages: number;
+  last: boolean; // 마지막 페이지 여부
+  first: boolean; // 첫 번째 페이지 여부
   hasNext: boolean;
 }
 
@@ -81,29 +83,12 @@ export interface ArchivingResult {
   message?: string;
 }
 
-// 검색 결과 통계
+// 검색 결과 통계 (페이지네이션 기반)
 export interface SearchStats {
-  totalRecords: number;
-  filteredRecords: number;
-  searchDuration: number;
-  fromCache: boolean;
-}
-
-// API 버전 타입
-export type ApiVersion = 'v1' | 'v2' | 'v3';
-
-// API 성능 측정 결과
-export interface ApiPerformanceMetrics {
-  version: ApiVersion;
-  responseTime: number; // 밀리초
-  totalRecords: number;
-  queryTime?: number; // 백엔드 쿼리 시간 (백엔드에서 제공하는 경우)
-  timestamp: Date;
-}
-
-// 버전별 성능 비교 데이터
-export interface VersionPerformanceComparison {
-  v1?: ApiPerformanceMetrics;
-  v2?: ApiPerformanceMetrics;
-  v3?: ApiPerformanceMetrics;
+  totalElements: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
 }

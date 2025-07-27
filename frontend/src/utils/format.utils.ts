@@ -89,10 +89,15 @@ export const formatStatus = (status: string): string => {
 };
 
 // 디바이스 타입 포맷팅
-export const formatDevice = (device: string): string => {
+export const formatDevice = (device: string | null | undefined): string => {
+  if (!device) return '알 수 없음';
+  
+  // 실제 백엔드 데이터는 "iPad Air", "MacBook Pro", "Galaxy S24", "Windows 11" 같은 형태로 옴
+  // 이런 경우 그대로 표시하는 것이 더 유용함
   const deviceMap: Record<string, string> = {
+    // 기본적인 타입들
     mobile: '모바일',
-    desktop: '데스크톱',
+    desktop: '데스크톱', 
     tablet: '태블릿',
     web: '웹',
     ios: 'iOS',
@@ -100,13 +105,36 @@ export const formatDevice = (device: string): string => {
     windows: 'Windows',
     mac: 'Mac',
     linux: 'Linux',
+    // 소문자 키워드들
+    iphone: 'iPhone',
+    ipad: 'iPad',
+    macbook: 'MacBook',
+    galaxy: 'Galaxy',
   };
   
-  return deviceMap[device.toLowerCase()] || device;
+  // 소문자로 변환해서 매핑 테이블에서 찾아보고, 없으면 원본 그대로 반환
+  const lowerDevice = device.toLowerCase();
+  const mapped = deviceMap[lowerDevice];
+  
+  if (mapped) {
+    return mapped;
+  }
+  
+  // 부분 매칭 시도
+  for (const key of Object.keys(deviceMap)) {
+    if (lowerDevice.includes(key)) {
+      return device; // 부분 매칭되면 원본 그대로 (예: "iPad Air" → "iPad Air")
+    }
+  }
+  
+  // 매핑되지 않으면 원본 그대로 반환
+  return device;
 };
 
 // 인증 결과 포맷팅
-export const formatAuthResult = (result: string): string => {
+export const formatAuthResult = (result: string | null | undefined): string => {
+  if (!result) return '알 수 없음';
+  
   const resultMap: Record<string, string> = {
     success: '성공',
     failure: '실패',
@@ -120,7 +148,9 @@ export const formatAuthResult = (result: string): string => {
 };
 
 // API 엔드포인트 표시용 포맷팅
-export const formatEndpoint = (endpoint: string): string => {
+export const formatEndpoint = (endpoint: string | null | undefined): string => {
+  if (!endpoint) return '알 수 없음';
+  
   // 너무 긴 엔드포인트는 축약
   if (endpoint.length > 50) {
     const parts = endpoint.split('/');
