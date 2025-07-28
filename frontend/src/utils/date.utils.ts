@@ -1,5 +1,6 @@
 import { format, parseISO, isValid, startOfDay, endOfDay, subDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { formatKoreanDateTime } from './timezone.utils';
 
 // 기본 날짜 포맷
 export const DEFAULT_DATE_FORMAT = 'yyyy-MM-dd';
@@ -19,17 +20,13 @@ export const formatDate = (date: string | Date, dateFormat = DEFAULT_DATE_FORMAT
   }
 };
 
-// 날짜시간 포맷팅
+// 날짜시간 포맷팅 (한국시간 기준)
 export const formatDateTime = (date: string | Date | null | undefined): string => {
   if (!date) return '알 수 없음';
   
   try {
-    const parsedDate = typeof date === 'string' ? parseISO(date) : date;
-    if (!isValid(parsedDate)) {
-      console.warn('유효하지 않은 날짜:', date);
-      return '유효하지 않은 날짜';
-    }
-    return format(parsedDate, DEFAULT_DATETIME_FORMAT, { locale: ko });
+    // 한국시간 기준으로 포맷팅
+    return formatKoreanDateTime(date);
   } catch (error) {
     console.error('날짜 파싱 에러:', error, date);
     return '날짜 파싱 오류';

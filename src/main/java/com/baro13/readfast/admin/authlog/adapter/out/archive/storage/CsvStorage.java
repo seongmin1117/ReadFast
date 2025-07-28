@@ -5,7 +5,6 @@ import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import com.baro13.readfast.admin.authlog.domain.port.DataRetentionPolicyProvider;
 import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.ArchiveFormat;
 import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.CompressionType;
-import com.baro13.readfast.global.common.TimeZoneConstants;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
@@ -19,7 +18,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
@@ -165,7 +163,12 @@ public class CsvStorage implements Storage {
     public ArchiveFormat getArchiveFormat() {
         return ArchiveFormat.CSV;
     }
-    
+
+    @Override
+    public List<AuthLog> findByCursor(LocalDate cursorDate, int limit) {
+        return List.of();
+    }
+
     // === Private Methods ===
     
     private Path getCsvPath(LocalDate date) {

@@ -29,8 +29,10 @@ public class ArchiveMetadataMapper {
             archiveMetadata.getStartDate(),
             archiveMetadata.getEndDate(),
             archiveMetadata.getStorageType(),
+            archiveMetadata.getCompressionType(),
             archiveMetadata.getFilePath(),
             archiveMetadata.getFileSizeBytes(),
+            archiveMetadata.getRecordsCount(),
             archiveMetadata.getArchivedAt(),
             false // 새로 생성시 삭제 상태는 false
         );
@@ -53,9 +55,12 @@ public class ArchiveMetadataMapper {
             entity.getStartDate(),
             entity.getEndDate(),
             entity.getStorageType(),
+            entity.getCompressionType(),
             entity.getFilePath(),
             entity.getFileSizeBytes(),
-            entity.getArchivedAt()
+            entity.getRecordCount(),
+            entity.getArchivedAt(),
+            entity.isDeleted()
         );
     }
 
@@ -70,15 +75,18 @@ public class ArchiveMetadataMapper {
      * @return ArchiveMetadata 도메인 객체
      */
     public ArchiveMetadata createFromBatchResult(String storageType, String filePath, 
-                                               Long fileSizeBytes, Instant startDate, Instant endDate) {
+                                               Long fileSizeBytes, Instant startDate, Instant endDate, String compressionType, Integer recordCount) {
         return ArchiveMetadata.of(
             null, // ID는 저장 시 자동 생성
             startDate,
             endDate,
             storageType,
+            compressionType,
             filePath,
             fileSizeBytes,
-            Instant.now() // 현재 시간으로 아카이브 생성 시간 설정
+            recordCount,
+            Instant.now(), // 현재 시간으로 아카이브 생성 시간 설정
+            false
         );
     }
 }

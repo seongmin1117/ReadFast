@@ -16,21 +16,19 @@ interface UseAuthLogsOptions {
 interface UseAuthLogsReturn {
   data: PageResponse<AuthLog> | null;
   logs: AuthLog[];
+  allLogs: AuthLog[]; // 누적된 모든 로그 (더보기 기능용)
   isLoading: boolean;
+  isLoadingMore: boolean;
   error: string | null;
   searchCondition: AuthSearchCondition;
   stats: SearchStats | null;
   
   // Actions
   search: (condition?: Partial<AuthSearchCondition>) => Promise<void>;
+  loadMore: () => Promise<void>;
   reset: () => void;
   clearError: () => void;
   clearCache: () => void;
-  
-  // Pagination helpers
-  goToPage: (page: number) => Promise<void>;
-  nextPage: () => Promise<void>;
-  previousPage: () => Promise<void>;
   
   // Data helpers
   getById: (id: number) => Promise<AuthLog | null>;
@@ -53,7 +51,9 @@ export function useAuthLogs(options: UseAuthLogsOptions = {}): UseAuthLogsReturn
 
   // State
   const [data, setData] = useState<PageResponse<AuthLog> | null>(null);
+  const [allLogs, setAllLogs] = useState<AuthLog[]>([]); // 누적된 모든 로그
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<SearchStats | null>(null);
   const [searchCondition, setSearchCondition] = useState<AuthSearchCondition>({
@@ -64,29 +64,28 @@ export function useAuthLogs(options: UseAuthLogsOptions = {}): UseAuthLogsReturn
   // Computed values
   const logs = data?.content || [];
 
-  // Main search function
+  // Main search function (새로운 검색)
   const search = useCallback(async (condition?: Partial<AuthSearchCondition>) => {
     try {
       setIsLoading(true);
       setError(null);
 
       const newCondition = condition 
-        ? { ...searchCondition, ...condition }
-        : searchCondition;
+        ? { ...searchCondition, ...condition, cursorId: undefined, cursorDate: undefined } // 새 검색이므로 커서 초기화
+        : { ...searchCondition, cursorId: undefined, cursorDate: undefined };
       
       setSearchCondition(newCondition);
 
       const result = await AuthLogService.search(newCondition, useCache);
       setData(result);
+      setAllLogs(result.content); // 새로운 검색이므로 allLogs 초기화
 
       // Update stats from the result
       setStats({
-        totalElements: result.totalElements,
-        totalPages: result.totalPages, 
-        currentPage: result.number,
+        currentResultCount: result.content.length,
         pageSize: result.size,
         hasNext: result.hasNext,
-        hasPrevious: !result.first
+        isCursorBased: result.isCursorBased
       });
 
     } catch (err) {
@@ -98,9 +97,53 @@ export function useAuthLogs(options: UseAuthLogsOptions = {}): UseAuthLogsReturn
     }
   }, [searchCondition, useCache]);
 
+  // Load more function (더보기)
+  const loadMore = useCallback(async () => {
+    if (!data || !data.hasNext || isLoadingMore) return;
+
+    try {
+      setIsLoadingMore(true);
+      setError(null);
+
+      // 마지막 항목의 커서 정보 사용
+      const lastItem = allLogs[allLogs.length - 1];
+      if (!lastItem) return;
+
+      const moreCondition = {
+        ...searchCondition,
+        cursorId: lastItem.id,
+        cursorDate: new Date(lastItem.date),
+        page: 0 // 커서 기반에서는 항상 0
+      };
+
+      const result = await AuthLogService.search(moreCondition, useCache);
+      
+      // 기존 데이터에 새 데이터 추가
+      const newAllLogs = [...allLogs, ...result.content];
+      setAllLogs(newAllLogs);
+      setData(result); // 최신 페이지 정보로 업데이트
+
+      // Update stats
+      setStats({
+        currentResultCount: newAllLogs.length,
+        pageSize: result.size,
+        hasNext: result.hasNext,
+        isCursorBased: result.isCursorBased
+      });
+
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '더보기 중 오류가 발생했습니다.';
+      setError(errorMessage);
+      console.error('더보기 실패:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [data, allLogs, searchCondition, useCache, isLoadingMore]);
+
   // Reset function
   const reset = useCallback(() => {
     setData(null);
+    setAllLogs([]);
     setError(null);
     setStats(null);
     setSearchCondition(DEFAULT_CONDITION);
@@ -115,23 +158,6 @@ export function useAuthLogs(options: UseAuthLogsOptions = {}): UseAuthLogsReturn
   const clearCache = useCallback(() => {
     AuthLogService.clearCache();
   }, []);
-
-  // Pagination helpers
-  const goToPage = useCallback(async (page: number) => {
-    await search({ page });
-  }, [search]);
-
-  const nextPage = useCallback(async () => {
-    if (data && !data.last) {
-      await goToPage(data.number + 1);
-    }
-  }, [data, goToPage]);
-
-  const previousPage = useCallback(async () => {
-    if (data && !data.first) {
-      await goToPage(data.number - 1);
-    }
-  }, [data, goToPage]);
 
   // Data helpers
   const getById = useCallback(async (id: number): Promise<AuthLog | null> => {
@@ -157,21 +183,19 @@ export function useAuthLogs(options: UseAuthLogsOptions = {}): UseAuthLogsReturn
   return {
     data,
     logs,
+    allLogs,
     isLoading,
+    isLoadingMore,
     error,
     searchCondition,
     stats,
     
     // Actions
     search,
+    loadMore,
     reset,
     clearError,
     clearCache,
-    
-    // Pagination helpers
-    goToPage,
-    nextPage,
-    previousPage,
     
     // Data helpers
     getById,

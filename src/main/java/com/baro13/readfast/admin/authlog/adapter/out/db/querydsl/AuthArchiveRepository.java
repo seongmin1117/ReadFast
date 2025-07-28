@@ -22,7 +22,7 @@ public class AuthArchiveRepository {
     private final JPAQueryFactory queryFactory;
     
     /**
-     * 커서 기반으로 지정된 날짜보다 오래된 인증 로그 조회 (아카이빙용)
+     * 커서 기반으로 지정된 날짜보다 오래된 인증 로그 조회 (아카이빙용 - MASTER DB 전용)
      * ID 기반 커서를 사용하여 중복 없이 순차적으로 데이터를 처리
      * 
      * @param cutoffDate 기준 날짜
@@ -30,6 +30,7 @@ public class AuthArchiveRepository {
      * @param lastProcessedId 마지막 처리된 ID (커서), null이면 처음부터 시작
      * @return 조회된 인증 로그 리스트 (ID 순으로 정렬)
      */
+    @Transactional(readOnly = false) // Master DB에서 조회 (배치 작업용)
     public List<AuthLog> findOlderThan(LocalDateTime cutoffDate, int batchSize, Long lastProcessedId) {
         var cutoffInstant = cutoffDate.toInstant(ZoneOffset.UTC);
         
@@ -51,10 +52,10 @@ public class AuthArchiveRepository {
     }
     
     /**
-     * 동시성 안전성을 위한 스냅샷 기반 조회
+     * 동시성 안전성을 위한 스냅샷 기반 조회 (MASTER DB 전용)
      * REPEATABLE READ 격리 수준에서 데이터 일관성 보장
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = false) // Master DB에서 조회 (배치 작업용)
     public List<AuthLog> findOlderThanWithSnapshot(LocalDateTime cutoffDate, int limit, Long lastProcessedId) {
         var cutoffInstant = cutoffDate.toInstant(ZoneOffset.UTC);
         
@@ -75,9 +76,9 @@ public class AuthArchiveRepository {
     }
     
     /**
-     * 특정 ID 목록의 데이터 삭제
+     * 특정 ID 목록의 데이터 삭제 (MASTER DB에서만 실행)
      */
-    @Transactional
+    @Transactional(readOnly = false)
     public int deleteByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return 0;
@@ -89,9 +90,9 @@ public class AuthArchiveRepository {
     }
     
     /**
-     * 지정된 날짜보다 오래된 데이터 개수 조회
+     * 지정된 날짜보다 오래된 데이터 개수 조회 (MASTER DB 전용)
      */
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = false) // Master DB에서 조회 (배치 작업용)
     public long countOlderThan(LocalDateTime cutoffDate) {
         var cutoffInstant = cutoffDate.toInstant(ZoneOffset.UTC);
         

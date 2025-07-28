@@ -54,6 +54,66 @@ spring:
     hibernate:
       ddl-auto: update
 
+# 데이터 보관 정책 및 아카이빙 설정
+data:
+  retention:
+    db-retention-days: 90                   # DB에 보관할 일수
+    total-retention-days: 365               # 전체 보관 일수 (아카이브 포함)
+    batch-size: 1000                        # 배치 처리 크기
+    archive-base-path: "./archive-data"     # 아카이브 저장 기본 경로
+    archive-file-format: "yyyy-MM-dd"       # 아카이브 파일명 형식
+    enable-archiving: true                  # 아카이빙 활성화
+    enable-data-deletion: true              # 데이터 삭제 활성화
+    cron-expression: "0 0 2 * * ?"          # 매일 새벽 2시 실행
+    
+    # 압축 및 저장 옵션
+    enable-compression: true                # 압축 활성화
+    compression-format: "gzip"              # 압축 형식 (gzip, zip, none)
+    archive-data-format: "sqlite"           # 저장 형식 (json, csv, sqlite)
+    
+    # SQLite 관련 설정
+    enable-sqlite-conversion: true          # SQLite 변환 활성화
+    sqlite-cleanup-after-conversion: false # 변환 후 압축 파일 삭제 여부
+    temp-file-cleanup-hours: 2              # 임시 파일 정리 주기(시간)
+
+# 캐싱 설정
+cache:
+  caffeine:
+    # 아카이브 데이터 캐시 설정
+    archive:
+      maximum-weight: 250000000             # 250MB 메모리 제한
+      expire-after-write: 2h                # 쓰기 후 만료 시간
+      expire-after-access: 30m              # 접근 후 만료 시간
+      record-stats: true                    # 통계 기록 활성화
+    
+    # 압축 데이터 캐시 설정
+    compressed:
+      maximum-weight: 100000000             # 100MB 메모리 제한
+      expire-after-write: 4h                # 쓰기 후 만료 시간
+      expire-after-access: 1h               # 접근 후 만료 시간
+      record-stats: true                    # 통계 기록 활성화
+    
+    # 정책 캐시 설정
+    policy:
+      maximum-size: 100                     # 최대 100개 정책
+      expire-after-write: 1h                # 1시간 후 만료
+      expire-after-access: 30m              # 30분 접근 없으면 만료
+
+# 배치 처리 설정
+batch:
+  thread-pool:
+    core-pool-size: 4                       # 기본 스레드 풀 크기
+    max-pool-size: 8                        # 최대 스레드 풀 크기
+    queue-capacity: 100                     # 작업 큐 용량
+    thread-name-prefix: "archive-batch-"    # 스레드 이름 접두사
+    keep-alive-seconds: 60                  # 스레드 생존 시간
+    await-termination-seconds: 30           # 종료 대기 시간
+
+# 스케줄링 설정
+scheduling:
+  enabled: true
+  thread-pool-size: 5                       # 스케줄러 스레드 풀 크기
+
 cors:
   allowed-origins:
     - "http://localhost:5173"
@@ -74,32 +134,3 @@ cors:
   allow-credentials: true
   max-age: 3600
 
-# 데이터 보관 정책 설정
-data:
-  retention:
-    db-retention-days: 90        # DB에 보관할 일수
-    total-retention-days: 365    # 전체 보관 일수
-    batch-size: 1000             # 배치 처리 크기
-    archive-base-path: "/Users/seongmin/project/claude/ReadFast/archive-data"  # 아카이브 파일 저장 경로
-    archive-file-format: "yyyy-MM-dd"           # 아카이브 파일명 형식
-    enable-archiving: true       # 아카이빙 활성화
-    enable-data-deletion: true   # 데이터 삭제 활성화
-    cron-expression: "0 0 2 * * ?"  # 매일 새벽 2시 실행
-    # 압축 설정
-    enable-compression: true     # 압축 활성화
-    compression-format: "gzip"   # 압축 형식 (gzip, zip, none)
-    # 파일 형식 설정
-    archive-data-format: "csv"   # 저장 형식 (json, csv, parquet) - CSV는 Metabase 호환
-    # SQLite 분석 DB 설정
-    enable-sqlite-conversion: true  # SQLite 변환 활성화
-    sqlite-cleanup-after-conversion: false  # 변환 후 압축 파일 삭제 여부
-
-# 배치 처리 설정
-batch:
-  thread-pool:
-    core-pool-size: 4           # 기본 스레드 풀 크기
-    max-pool-size: 8            # 최대 스레드 풀 크기
-    queue-capacity: 100         # 작업 큐 용량
-    thread-name-prefix: "batch-" # 스레드 이름 접두사
-    keep-alive-seconds: 60      # 스레드 유지 시간
-    await-termination-seconds: 30 # 종료 대기 시간

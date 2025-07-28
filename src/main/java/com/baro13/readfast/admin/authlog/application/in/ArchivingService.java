@@ -1,12 +1,13 @@
 package com.baro13.readfast.admin.authlog.application.in;
 
+import com.baro13.readfast.admin.authlog.domain.exception.ArchivingException;
 import com.baro13.readfast.admin.authlog.domain.port.BatchExecution;
 import com.baro13.readfast.admin.authlog.domain.port.BatchExecution.BatchExecutionResult;
 import com.baro13.readfast.admin.authlog.domain.port.DataRetentionPolicyProvider;
-import com.baro13.readfast.admin.authlog.domain.exception.ArchivingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 배치 실행 서비스 구현체
@@ -20,6 +21,7 @@ public class ArchivingService {
     private final BatchExecution batchExecution;
     private final DataRetentionPolicyProvider policyProvider;
 
+    @Transactional(readOnly = false) // MASTER DB 사용 보장
     public BatchExecutionResult executeArchivingBatch() {
         log.info("아카이빙 배치 서비스 실행 시작");
         

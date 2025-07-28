@@ -5,7 +5,6 @@ import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
 import com.baro13.readfast.admin.authlog.domain.port.DataRetentionPolicyProvider;
 import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.ArchiveFormat;
 import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.CompressionType;
-import com.baro13.readfast.global.common.TimeZoneConstants;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -19,7 +18,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
@@ -178,7 +176,12 @@ public class JsonStorage implements Storage {
     public ArchiveFormat getArchiveFormat() {
         return ArchiveFormat.JSON;
     }
-    
+
+    @Override
+    public List<AuthLog> findByCursor(LocalDate cursorDate, int limit) {
+        return List.of();
+    }
+
     // === Private Methods ===
     
     private Path getJsonPath(LocalDate date) {
