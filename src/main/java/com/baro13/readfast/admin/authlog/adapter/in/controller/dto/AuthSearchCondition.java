@@ -57,4 +57,8 @@ public class AuthSearchCondition {
     public String getDirection() {
         return direction == null ? "desc" : direction;
     }
+
+    public String getResult() {
+        return result == null ? null : result.toUpperCase();
+    }
 }

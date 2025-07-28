@@ -28,9 +28,14 @@ public class ArchiveMetadataEntity {
     private String storageType;      // 예: sqlite, csv, parquet
 
     @Column(nullable = false)
+    private String compressionType;
+
+    @Column(nullable = false)
     private String filePath;         // 파일 위치 (로컬경로 또는 S3 Key 등)
 
     private Long fileSizeBytes;      // 파일 크기 (선택)
+
+    private Integer recordCount;
 
     private Instant archivedAt;      // 아카이브 생성 시각
 

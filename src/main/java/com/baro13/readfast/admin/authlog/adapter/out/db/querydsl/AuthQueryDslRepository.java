@@ -28,7 +28,18 @@ public class AuthQueryDslRepository {
 
     public Page<AuthLog> search(AuthSearchCondition condition, Pageable pageable){
         List<AuthLog> content = getContent(condition, pageable);
-        return new PageImpl<>(content, pageable, -1);
+        
+        // 커서 기반인 경우 totalElements를 -1로 설정하여 성능 최적화
+        long totalElements;
+        if (condition.getCursorId() != null && condition.getCursorDate() != null) {
+            // 커서 기반에서는 totalElements를 -1로 설정
+            totalElements = -1;
+        } else {
+            // 일반 페이지네이션에서는 count 쿼리 실행
+            totalElements = getTotalCount(condition);
+        }
+            
+        return new PageImpl<>(content, pageable, totalElements);
     }
 
     public List<AuthLog> getContent(AuthSearchCondition condition, Pageable pageable) {
@@ -60,6 +71,14 @@ public class AuthQueryDslRepository {
         orderSpecifiers.add(authLogEntity.id.desc());
         
         return orderSpecifiers.toArray(new OrderSpecifier[0]);
+    }
+    
+    private long getTotalCount(AuthSearchCondition condition) {
+        return queryFactory
+            .select(authLogEntity.count())
+            .from(authLogEntity)
+            .where(AuthQueryConditionBuilder.buildCondition(condition)) // 커서 조건 제외
+            .fetchOne();
     }
     
     private OrderSpecifier<?> getOrderSpecifier(Sort.Order sortOrder) {

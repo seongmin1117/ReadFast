@@ -26,15 +26,17 @@ public class AuthLogController {
     private final AuthLogService authLogService;
 
     /**
-     * 인증로그 검색 (통합 조회: DB + 스토리지)
+     * 인증로그 검색 (통합 조회: DB + 스토리지, 커서 기반 페이지네이션)
      */
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<PageResponse<AuthLog>>> search(@Valid AuthSearchCondition condition) {
         try {
+            // 모든 검색을 커서 기반으로 통일
             var response = authLogService.search(condition);
             var data = PageResponse.from(response);
             
-            log.debug("인증로그 검색 완료 - 조건: {}, 결과: {}건", condition, data.totalElements());
+            log.info("인증로그 검색 완료 (커서 기반) - 조건: {}, 결과: {}건, hasNext: {}", 
+                condition, data.content().size(), data.hasNext());
             return ResponseEntity.ok(ApiResponse.success(data));
             
         } catch (Exception e) {
@@ -44,24 +46,6 @@ public class AuthLogController {
         }
     }
 
-    /**
-     * 인증로그 검색 V2 (통합 조회: DB + 스토리지, 커서 기반)
-     */
-    @GetMapping("/search-v2")
-    public ResponseEntity<ApiResponse<PageResponse<AuthLog>>> searchV2(@Valid AuthSearchCondition condition) {
-        try {
-            var response = authLogService.searchV2(condition);
-            var data = PageResponse.from(response);
-            
-            log.debug("인증로그 검색 V2 완료 - 조건: {}, 결과: {}건", condition, data.totalElements());
-            return ResponseEntity.ok(ApiResponse.success(data));
-            
-        } catch (Exception e) {
-            log.error("인증로그 검색 V2 실패. 조건: {}", condition, e);
-            return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error("인증로그 검색 중 오류가 발생했습니다."));
-        }
-    }
 
 
 }

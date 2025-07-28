@@ -1,7 +1,7 @@
 package com.baro13.readfast.admin.authlog.adapter.out.archive.storage;
 
 import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
-import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy;
+import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.ArchiveFormat;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -61,5 +61,7 @@ public interface Storage {
      */
     void delete(LocalDate date);
 
-    ArchivingStrategy.ArchiveFormat getArchiveFormat();
+    ArchiveFormat getArchiveFormat();
+
+    List<AuthLog> findByCursor(LocalDate cursorDate, int limit);
 }

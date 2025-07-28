@@ -1,13 +1,14 @@
-import { ApiService, ApiCache } from './api';
-import { ApiResponseAdapter } from './apiResponseAdapter';
-import type { 
-  AuthLog, 
+import {ApiCache, ApiService} from './api';
+import {ApiResponseAdapter} from './apiResponseAdapter';
+import type {
+  AuthLog,
+  AuthSearchCondition,
   BackendAuthLog,
-  AuthSearchCondition, 
+  BackendPageResponse,
   PageResponse,
-  BackendPageResponse
+  SearchStats
 } from '@/types/auth.types';
-import type { BackendApiResponse } from '@/types/api.types';
+import type {BackendApiResponse} from '@/types/api.types';
 
 export class AuthLogService {
   private static readonly CACHE_PREFIX = 'auth-logs';
@@ -34,7 +35,7 @@ export class AuthLogService {
     
     try {
       // 가장 최적화된 V3 search-v2 API 사용 (커서 기반 통합 조회)
-      const response = await ApiService.get('/v3/auth/search-v2', params);
+      const response = await ApiService.get('/v3/auth/search', params);
       const backendResponse = response as unknown as BackendApiResponse<BackendPageResponse<BackendAuthLog>>;
       const adaptedResponse = ApiResponseAdapter.adaptVersionedResponse(backendResponse);
       
@@ -100,29 +101,25 @@ export class AuthLogService {
   }
 
   /**
-   * 검색 통계 정보 조회
+   * 검색 통계 정보 조회 (커서 기반)
    */
   static async getSearchStats(condition: AuthSearchCondition): Promise<SearchStats> {
     try {
       const response = await this.search(condition, false);
       
       return {
-        totalElements: response.totalElements,
-        totalPages: response.totalPages,
-        currentPage: response.number,
+        currentResultCount: response.content.length,
         pageSize: response.size,
         hasNext: response.hasNext,
-        hasPrevious: !response.first
+        isCursorBased: response.isCursorBased
       };
     } catch (error) {
       console.error('검색 통계 조회 실패:', error);
       return {
-        totalElements: 0,
-        totalPages: 0,
-        currentPage: 0,
+        currentResultCount: 0,
         pageSize: 0,
         hasNext: false,
-        hasPrevious: false
+        isCursorBased: true
       };
     }
   }
@@ -146,14 +143,4 @@ export class AuthLogService {
     // 최대 1년 범위까지만 허용
     return diffInDays <= 365 && diffInDays >= 0;
   }
-}
-
-// SearchStats 인터페이스가 없다면 추가
-interface SearchStats {
-  totalElements: number;
-  totalPages: number;
-  currentPage: number;
-  pageSize: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
 }

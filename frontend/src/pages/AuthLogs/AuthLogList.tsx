@@ -24,6 +24,11 @@ import {
   formatEndpoint 
 } from '@/utils/format.utils';
 import { cn } from '@/utils/cn.utils';
+import { 
+  toKoreanDateTimeLocal, 
+  fromKoreanDateTimeLocal, 
+  getTimezoneInfo 
+} from '@/utils/timezone.utils';
 import type { AuthLog, AuthSearchCondition, TableColumn } from '@/types';
 
 // 검색 필터 컴포넌트
@@ -42,25 +47,33 @@ const SearchFilters: React.FC<{
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               시작 날짜
+              <span className="text-xs text-gray-500 ml-1">
+                ({getTimezoneInfo().displayName})
+              </span>
             </label>
             <Input
               type="datetime-local"
-              value={condition.startDate ? condition.startDate.toISOString().slice(0, 16) : ''}
+              value={toKoreanDateTimeLocal(condition.startDate)}
               onChange={(e) => onConditionChange({ 
-                startDate: e.target.value ? new Date(e.target.value) : undefined 
+                startDate: fromKoreanDateTimeLocal(e.target.value) || undefined 
               })}
+              placeholder="시작 날짜 및 시간 선택"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               종료 날짜
+              <span className="text-xs text-gray-500 ml-1">
+                ({getTimezoneInfo().displayName})
+              </span>
             </label>
             <Input
               type="datetime-local"
-              value={condition.endDate ? condition.endDate.toISOString().slice(0, 16) : ''}
+              value={toKoreanDateTimeLocal(condition.endDate)}
               onChange={(e) => onConditionChange({ 
-                endDate: e.target.value ? new Date(e.target.value) : undefined 
+                endDate: fromKoreanDateTimeLocal(e.target.value) || undefined 
               })}
+              placeholder="종료 날짜 및 시간 선택"
             />
           </div>
         </div>
@@ -160,7 +173,9 @@ const AuthLogDetailModal: React.FC<{
               <p className="mt-1 text-sm text-gray-900">{log.id}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-500">날짜</label>
+              <label className="block text-sm font-medium text-gray-500">
+                날짜 ({getTimezoneInfo().displayName})
+              </label>
               <p className="mt-1 text-sm text-gray-900">{formatDateTime(log.date)}</p>
             </div>
             <div>
@@ -194,18 +209,23 @@ const AuthLogDetailModal: React.FC<{
 export const AuthLogList: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<AuthLog | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [localSearchCondition, setLocalSearchCondition] = useState<AuthSearchCondition>({
+    page: 0,
+    size: 20,
+    sortBy: 'date',
+    direction: 'desc',
+  });
 
   const {
-    logs,
+    allLogs,
     data,
     isLoading,
+    isLoadingMore,
     error,
-    searchCondition,
     stats,
     search,
     reset,
-    nextPage,
-    previousPage
+    loadMore
   } = useAuthLogs({
     initialCondition: {
       page: 0,
@@ -217,18 +237,25 @@ export const AuthLogList: React.FC = () => {
   });
 
 
-  // 검색 조건 업데이트
+  // 검색 조건 업데이트 (로컬 상태만 업데이트)
   const handleConditionChange = (updates: Partial<AuthSearchCondition>) => {
-    search({ ...searchCondition, ...updates, page: 0 }); // 조건 변경 시 첫 페이지로
+    setLocalSearchCondition(prev => ({ ...prev, ...updates }));
   };
 
   // 검색 실행
   const handleSearch = () => {
-    search();
+    search(localSearchCondition);
   };
 
   // 리셋
   const handleReset = () => {
+    const defaultCondition = {
+      page: 0,
+      size: 20,
+      sortBy: 'date' as const,
+      direction: 'desc' as const,
+    };
+    setLocalSearchCondition(defaultCondition);
     reset();
   };
 
@@ -346,7 +373,7 @@ export const AuthLogList: React.FC = () => {
 
       {/* 검색 필터 */}
       <SearchFilters
-        condition={searchCondition}
+        condition={localSearchCondition}
         onConditionChange={handleConditionChange}
         onSearch={handleSearch}
         onReset={handleReset}
@@ -356,21 +383,21 @@ export const AuthLogList: React.FC = () => {
       {/* 통계 정보 */}
       {stats && (
         <Card className="mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">{stats.totalElements.toLocaleString()}</div>
-              <div className="text-sm text-gray-600">총 레코드</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.currentResultCount.toLocaleString()}
+              </div>
+              <div className="text-sm text-gray-600">로드된 총 레코드</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{stats.currentPage + 1}</div>
-              <div className="text-sm text-gray-600">현재 페이지</div>
+              <div className="text-2xl font-bold text-green-600">
+                {stats.hasNext ? '더 있음' : '마지막'}
+              </div>
+              <div className="text-sm text-gray-600">데이터 상태</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">{stats.totalPages}</div>
-              <div className="text-sm text-gray-600">총 페이지</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">{stats.pageSize}</div>
+              <div className="text-2xl font-bold text-purple-600">{stats.pageSize}</div>
               <div className="text-sm text-gray-600">페이지 크기</div>
             </div>
           </div>
@@ -405,37 +432,38 @@ export const AuthLogList: React.FC = () => {
 
         <Table
           columns={columns}
-          data={logs}
-          loading={isLoading}
+          data={allLogs}
+          loading={isLoading && allLogs.length === 0}
           emptyText="검색 결과가 없습니다."
         />
 
-        {/* 페이지네이션 */}
-        {data && (
-          <div className="flex justify-between items-center mt-4 pt-4 border-t">
-            <div className="text-sm text-gray-600">
-              총 {data.totalElements.toLocaleString()}개 중 {((data.number) * data.size) + 1}-{Math.min((data.number + 1) * data.size, data.totalElements)}개 표시
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={previousPage}
-                disabled={data.first || isLoading}
-              >
-                이전
-              </Button>
-              <span className="px-3 py-1 text-sm text-gray-600">
-                {data.number + 1} / {data.totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={nextPage}
-                disabled={data.last || isLoading}
-              >
-                다음
-              </Button>
+        {/* 더보기 버튼 */}
+        {data && allLogs.length > 0 && (
+          <div className="flex justify-center items-center mt-6 pt-4 border-t">
+            <div className="text-center">
+              <div className="text-sm text-gray-600 mb-3">
+                현재 {allLogs.length.toLocaleString()}개 레코드가 로드되었습니다
+              </div>
+              {data.hasNext ? (
+                <Button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="flex items-center gap-2"
+                >
+                  {isLoadingMore ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      더 불러오는 중...
+                    </>
+                  ) : (
+                    '더보기'
+                  )}
+                </Button>
+              ) : (
+                <div className="text-sm text-gray-500">
+                  모든 데이터를 불러왔습니다
+                </div>
+              )}
             </div>
           </div>
         )}

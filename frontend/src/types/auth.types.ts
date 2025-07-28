@@ -35,26 +35,20 @@ export interface AuthSearchCondition {
   cursorDate?: Date;
 }
 
-// 백엔드 페이지 응답 타입 (실제 형식)
+// 백엔드 페이지 응답 타입 (커서 기반)
 export interface BackendPageResponse<T> {
   content: T[];
-  page: number;
   size: number;
-  totalElements: number;
-  totalPages: number;
   hasNext: boolean;
+  isCursorBased: boolean;
 }
 
-// 프론트엔드 페이지 응답 타입
+// 프론트엔드 페이지 응답 타입 (커서 기반)
 export interface PageResponse<T> {
   content: T[];
-  number: number; // 현재 페이지 번호 (0부터 시작)
   size: number;
-  totalElements: number;
-  totalPages: number;
-  last: boolean; // 마지막 페이지 여부
-  first: boolean; // 첫 번째 페이지 여부
   hasNext: boolean;
+  isCursorBased: boolean;
 }
 
 // 검색 필터 옵션
@@ -83,12 +77,10 @@ export interface ArchivingResult {
   message?: string;
 }
 
-// 검색 결과 통계 (페이지네이션 기반)
+// 검색 결과 통계 (커서 기반 페이지네이션)
 export interface SearchStats {
-  totalElements: number;
-  totalPages: number;
-  currentPage: number;
+  currentResultCount: number; // 현재 로드된 결과 수
   pageSize: number;
   hasNext: boolean;
-  hasPrevious: boolean;
+  isCursorBased: boolean; // 커서 기반 여부
 }

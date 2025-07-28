@@ -10,6 +10,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 아카이브 메타데이터 JPA 어댑터
@@ -24,6 +25,7 @@ public class ArchiveMetadataJpaAdapter implements ArchiveMetadataRepository {
     private final ArchiveMetadataMapper mapper;
 
     @Override
+    @Transactional(readOnly = false) // Master DB에 저장 보장
     public ArchiveMetadata save(ArchiveMetadata metadata) {
         if (metadata == null) {
             throw new IllegalArgumentException("저장할 ArchiveMetadata가 null입니다");
@@ -34,14 +36,15 @@ public class ArchiveMetadataJpaAdapter implements ArchiveMetadataRepository {
             var savedEntity = jpaRepository.save(entity);
             var result = mapper.toDomain(savedEntity);
 
-            log.info("아카이브 메타데이터 저장 완료. ID: {}, 파일경로: {}, 스토리지타입: {}", 
+            log.info("아카이브 메타데이터 Master DB 저장 완료. ID: {}, 파일경로: {}, 스토리지타입: {}", 
                     result.getId(), result.getFilePath(), result.getStorageType());
 
             return result;
 
         } catch (Exception e) {
-            log.error("아카이브 메타데이터 저장 실패. 파일경로: {}", metadata.getFilePath(), e);
-            throw new RuntimeException("아카이브 메타데이터 저장 중 오류 발생", e);
+            log.error("아카이브 메타데이터 Master DB 저장 실패. 파일경로: {}, 오류: {}", 
+                    metadata.getFilePath(), e.getMessage(), e);
+            throw new RuntimeException("아카이브 메타데이터 Master DB 저장 중 오류 발생", e);
         }
     }
 
@@ -158,43 +161,4 @@ public class ArchiveMetadataJpaAdapter implements ArchiveMetadataRepository {
         }
     }
 
-    /**
-     * 소프트 삭제 수행
-     * 
-     * @param id 삭제할 메타데이터 ID
-     * @return 삭제 성공 여부
-     */
-    public boolean softDelete(Long id) {
-        if (id == null) {
-            throw new IllegalArgumentException("삭제할 ID가 null입니다");
-        }
-
-        try {
-            var entityOpt = jpaRepository.findById(id);
-            if (entityOpt.isEmpty() || entityOpt.get().isDeleted()) {
-                log.warn("삭제할 아카이브 메타데이터가 존재하지 않습니다. ID: {}", id);
-                return false;
-            }
-
-            var entity = entityOpt.get();
-            var updatedEntity = new com.baro13.readfast.admin.authlog.adapter.out.db.jpa.entity.ArchiveMetadataEntity(
-                entity.getId(),
-                entity.getStartDate(),
-                entity.getEndDate(),
-                entity.getStorageType(),
-                entity.getFilePath(),
-                entity.getFileSizeBytes(),
-                entity.getArchivedAt(),
-                true // deleted = true
-            );
-
-            jpaRepository.save(updatedEntity);
-            log.info("아카이브 메타데이터 소프트 삭제 완료. ID: {}", id);
-            return true;
-
-        } catch (Exception e) {
-            log.error("아카이브 메타데이터 소프트 삭제 실패. ID: {}", id, e);
-            throw new RuntimeException("아카이브 메타데이터 소프트 삭제 중 오류 발생", e);
-        }
-    }
 }

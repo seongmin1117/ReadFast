@@ -57,6 +57,10 @@ public class AuthQueryConditionBuilder {
     
     private static BooleanExpression cursorBefore(Instant cursorDate, Long cursorId) {
         if (cursorDate == null || cursorId == null) return null;
+        
+        // 커서 기반 페이지네이션: 날짜 내림차순, ID 내림차순 정렬에서
+        // 다음 페이지를 가져오기 위해서는 cursorDate보다 이전이거나, 
+        // 같은 날짜면 cursorId보다 작은 것들을 가져와야 함
         return authLogEntity.date.lt(cursorDate)
             .or(authLogEntity.date.eq(cursorDate).and(authLogEntity.id.lt(cursorId)));
     }

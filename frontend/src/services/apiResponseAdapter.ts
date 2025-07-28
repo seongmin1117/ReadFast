@@ -48,7 +48,7 @@ export class ApiResponseAdapter {
   }
 
   /**
-   * 백엔드 페이지 응답을 프론트엔드 페이지 응답으로 변환
+   * 백엔드 페이지 응답을 프론트엔드 페이지 응답으로 변환 (커서 기반)
    */
   static adaptPageResponse(
     backendPageResponse: BackendPageResponse<BackendAuthLog>
@@ -57,13 +57,9 @@ export class ApiResponseAdapter {
 
     return {
       content,
-      number: backendPageResponse.page, // 백엔드 page -> 프론트엔드 number
       size: backendPageResponse.size,
-      totalElements: backendPageResponse.totalElements,
-      totalPages: backendPageResponse.totalPages,
-      last: !backendPageResponse.hasNext, // hasNext의 반대값
-      first: backendPageResponse.page === 0, // 첫 번째 페이지 여부
-      hasNext: backendPageResponse.hasNext
+      hasNext: backendPageResponse.hasNext,
+      isCursorBased: backendPageResponse.isCursorBased
     };
   }
 
