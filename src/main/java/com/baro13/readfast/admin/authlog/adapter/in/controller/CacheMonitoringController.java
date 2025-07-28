@@ -6,9 +6,9 @@ import com.baro13.readfast.global.response.ApiResponse;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -24,9 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CacheMonitoringController {
 
     private final ArchiveCache archiveCache;
-    
-    @Autowired(required = false)
-    private SqliteStorage sqliteStorage;
+    private final Optional<SqliteStorage> sqliteStorage;
 
     @GetMapping("/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCacheStatistics() {
@@ -115,8 +113,8 @@ public class CacheMonitoringController {
     @PostMapping("/cleanup-temp-files")
     public ResponseEntity<ApiResponse<String>> cleanupTemporaryFiles() {
         try {
-            if (sqliteStorage != null) {
-                sqliteStorage.cleanupOldTemporaryFiles();
+            if (sqliteStorage.isPresent()) {
+                sqliteStorage.get().cleanupOldTemporaryFiles();
                 String message = "임시 파일 정리가 성공적으로 완료되었습니다";
                 log.info("임시 파일 정리 완료");
                 return ResponseEntity.ok(ApiResponse.success(message));

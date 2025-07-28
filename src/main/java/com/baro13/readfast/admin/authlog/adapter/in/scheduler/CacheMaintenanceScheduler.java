@@ -2,9 +2,9 @@ package com.baro13.readfast.admin.authlog.adapter.in.scheduler;
 
 import com.baro13.readfast.admin.authlog.adapter.out.archive.cache.ArchiveCache;
 import com.baro13.readfast.admin.authlog.adapter.out.archive.storage.SqliteStorage;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -22,9 +22,7 @@ import org.springframework.stereotype.Component;
 public class CacheMaintenanceScheduler {
 
     private final ArchiveCache archiveCache;
-    
-    @Autowired(required = false)
-    private SqliteStorage sqliteStorage;
+    private final Optional<SqliteStorage> sqliteStorage;
 
     /**
      * 캐시 정리 작업 - 매 30분마다 실행
@@ -56,7 +54,7 @@ public class CacheMaintenanceScheduler {
      */
     @Scheduled(fixedRate = 2 * 60 * 60 * 1000) // 2시간
     public void cleanupTemporaryFiles() {
-        if (sqliteStorage == null) {
+        if (sqliteStorage.isEmpty()) {
             log.debug("SQLite 스토리지가 활성화되지 않아 임시 파일 정리를 건너뜁니다");
             return;
         }
@@ -64,7 +62,7 @@ public class CacheMaintenanceScheduler {
         try {
             log.debug("임시 파일 정리 작업 시작");
             
-            sqliteStorage.cleanupOldTemporaryFiles();
+            sqliteStorage.get().cleanupOldTemporaryFiles();
             
             log.debug("임시 파일 정리 작업 완료");
             
