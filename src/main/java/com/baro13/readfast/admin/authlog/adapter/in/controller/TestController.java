@@ -1,64 +1,68 @@
 package com.baro13.readfast.admin.authlog.adapter.in.controller;
 
+import com.baro13.readfast.admin.authlog.adapter.in.controller.dto.LoginRequest;
+import com.baro13.readfast.admin.authlog.adapter.out.db.cache.AuthLogCache;
+import com.baro13.readfast.admin.authlog.adapter.out.db.cache.AuthLogStats;
 import com.baro13.readfast.admin.authlog.adapter.out.db.jpa.AuthLogJpaRepository;
 import com.baro13.readfast.admin.authlog.adapter.out.db.jpa.entity.AuthLogEntity;
+import com.baro13.readfast.admin.authlog.adapter.out.db.jpa.mapper.AuthLogMapper;
 import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
-import com.github.benmanes.caffeine.cache.Cache;
+import com.baro13.readfast.global.response.ApiResponse;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.List;
+import java.time.ZoneId;
 import java.util.Random;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/test")
+@RequestMapping("/api/admin")
 @RequiredArgsConstructor
 public class TestController {
 
     private final AuthLogJpaRepository authLogJpaRepository;
-    private final Cache<LocalDate, List<AuthLog>> archiveCaffeineCache;
-
+    private final AuthLogCache authLogCache;
     private final Random random = new Random();
 
     private static final String[] DEVICES = {
         "WEB", "TABLET", "MOBILE_ANDROID", "MOBILE_IOS"
     };
-    @GetMapping("/login")
-    public ResponseEntity<AuthLogEntity> login(){
-        // 90% 확률로 SUCCESS, 10%는 FAILURE
-        String result = random.nextInt(100) < 90 ? "SUCCESS" : "FAILURE";
-        String device = DEVICES[random.nextInt(DEVICES.length)];
-        String userId = "user" + (random.nextInt(50000) + 1);
 
+    @PostMapping("/login")
+    @Transactional
+    public ResponseEntity<ApiResponse<AuthLog>> login(@RequestBody LoginRequest request) {
         AuthLogEntity entity = new AuthLogEntity(
             null,
             Instant.now(),
-            device,
-            userId,
-            result,
+            request.device(),
+            request.userId(),
+            request.result(),
             "/api/login"
         );
 
         AuthLogEntity saved = authLogJpaRepository.save(entity);
-        return ResponseEntity.ok().body(saved);
+        AuthLog log = AuthLogMapper.toDomain(saved);
+        authLogCache.update(log);
+
+        return ResponseEntity.ok(ApiResponse.success(log));
     }
 
-
-    @GetMapping("/cache/dates")
-    public List<LocalDate> getCachedDates() {
-        return archiveCaffeineCache.asMap().keySet().stream()
-            .sorted()
-            .collect(Collectors.toList());
+    @GetMapping("/dashboard/today-stats")
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<AuthLogStats>> getTodayStats() {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        AuthLogStats stats = authLogCache.getStats(today);
+        if (stats == null) {
+            stats = new AuthLogStats();
+        }
+        return ResponseEntity.ok(ApiResponse.success(stats));
     }
 
-    @GetMapping("/size")
-    public long getCacheSize() {
-        return archiveCaffeineCache.estimatedSize();
-    }
 
 }

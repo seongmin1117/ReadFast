@@ -1,35 +1,16 @@
-import React, { useState } from 'react';
-import { 
-  Search,
-  RefreshCw,
-  Smartphone,
-  User,
-  Activity,
-  Clock
-} from 'lucide-react';
-import { PageContainer, Card } from '@/components/layout';
-import { 
-  Button, 
-  Input, 
-  Table, 
-  Modal,
-  ModalBody,
-  ModalFooter
-} from '@/components/ui';
-import { useAuthLogs } from '@/hooks/useAuthLogs';
-import { 
-  formatDateTime, 
-  formatDevice, 
-  formatAuthResult,
-  formatEndpoint 
-} from '@/utils/format.utils';
-import { cn } from '@/utils/cn.utils';
-import { 
-  toKoreanDateTimeLocal, 
-  fromKoreanDateTimeLocal, 
-  getTimezoneInfo 
+import React, {useState} from 'react';
+import {Activity, Clock, RefreshCw, Search, Smartphone, User} from 'lucide-react';
+import {Card, PageContainer} from '@/components/layout';
+import {Button, Input, Modal, ModalBody, ModalFooter, Table} from '@/components/ui';
+import {useAuthLogs} from '@/hooks/useAuthLogs';
+import {formatAuthResult, formatDateTime, formatDevice, formatEndpoint} from '@/utils/format.utils';
+import {cn} from '@/utils/cn.utils';
+import {
+  fromKoreanDateTimeLocal,
+  getTimezoneInfo,
+  toKoreanDateTimeLocal
 } from '@/utils/timezone.utils';
-import type { AuthLog, AuthSearchCondition, TableColumn } from '@/types';
+import type {AuthLog, AuthSearchCondition, TableColumn} from '@/types';
 
 // 검색 필터 컴포넌트
 const SearchFilters: React.FC<{
@@ -392,13 +373,13 @@ export const AuthLogList: React.FC = () => {
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {stats.hasNext ? '더 있음' : '마지막'}
+                {stats.hasNext ? '로드 가능' : '마지막'}
               </div>
               <div className="text-sm text-gray-600">데이터 상태</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-purple-600">{stats.pageSize}</div>
-              <div className="text-sm text-gray-600">페이지 크기</div>
+              <div className="text-sm text-gray-600">요청당 로드 수</div>
             </div>
           </div>
         </Card>

@@ -88,6 +88,52 @@ public class BatchExecutionImpl implements BatchExecution {
         }
     }
 
+    @Override
+    public BatchExecutionResult executeArchivingBatchByDate(DataRetentionPolicy policy, LocalDate targetDate) {
+        var startTime = LocalDateTime.now();
+        
+        log.info("날짜별 아카이빙 배치 시작 - 정책: {}, 대상날짜: {}", policy.getPolicyId(), targetDate);
+        
+        try {
+            // 특정 날짜의 시작과 끝 시간 설정
+            var startOfDay = targetDate.atStartOfDay();
+            var endOfDay = targetDate.atTime(23, 59, 59);
+            
+            log.info("날짜별 아카이빙 대상: {} ~ {}", startOfDay, endOfDay);
+            
+            // 스토리지 초기화
+            var storage = storageFactory.resolve();
+
+            // 특정 날짜의 데이터만 처리
+            var result = processDataBySpecificDate(startOfDay, endOfDay, policy, storage, targetDate);
+            
+            var endTime = LocalDateTime.now();
+            var executionTimeMs = java.time.Duration.between(startTime, endTime).toMillis();
+            var throughputPerSecond = executionTimeMs > 0 ? (result.totalProcessed() * 1000.0 / executionTimeMs) : 0;
+            
+            log.info("날짜별 아카이빙 배치 완료 - 대상날짜: {}, Processed: {}, Archived: {}, Deleted: {}, " +
+                    "실행시간: {}ms, 처리량: {:.2f} records/sec", 
+                    targetDate, result.totalProcessed(), result.totalArchived(), result.totalDeleted(), 
+                    executionTimeMs, throughputPerSecond);
+            
+            return BatchExecutionResult.success(
+                result.totalProcessed(), 
+                result.totalArchived(), 
+                result.totalDeleted(),
+                executionTimeMs,
+                startTime, 
+                endTime
+            );
+            
+        } catch (Exception e) {
+            var endTime = LocalDateTime.now();
+            var failureResult = BatchExecutionResult.failure("날짜별 배치 실행 실패: " + e.getMessage(), startTime, endTime);
+            
+            log.error("날짜별 아카이빙 배치 실행 실패. 대상날짜: {}", targetDate, e);
+            return failureResult;
+        }
+    }
+
     /**
      * 메모리 효율적 청크별 데이터 처리 - 대량 데이터 최적화
      * 일자별로 단일 파일 생성하되, 메모리 사용량을 최소화
@@ -156,6 +202,77 @@ public class BatchExecutionImpl implements BatchExecution {
         
         log.info("대량 데이터 배치 처리 완료 - 총 처리: {}, 총 아카이브: {}, 총 삭제: {}", 
                 totalProcessed, totalArchived, totalDeleted);
+        
+        return new ProcessResult(totalProcessed, totalArchived, totalDeleted);
+    }
+    
+    /**
+     * 특정 날짜의 데이터만 처리하는 메서드 (날짜별 아카이빙)
+     */
+    private ProcessResult processDataBySpecificDate(LocalDateTime startOfDay, LocalDateTime endOfDay, 
+                                                  DataRetentionPolicy policy, Storage storage, LocalDate targetDate) {
+        var totalProcessed = 0L;
+        var totalArchived = 0L;
+        var totalDeleted = 0L;
+        
+        // 최적화된 배치 크기
+        var optimizedBatchSize = Math.max(policy.getRetentionRule().getBatchSize(), 1000);
+        Long lastProcessedId = null;
+        
+        log.info("특정 날짜 데이터 처리 시작 - 대상 날짜: {}, 배치 크기: {}", targetDate, optimizedBatchSize);
+        
+        var targetDateLogs = new java.util.ArrayList<AuthLog>();
+        
+        // 특정 날짜 범위의 데이터를 청크별로 조회
+        while (true) {
+            var chunk = authLogDbReader.findByDateRange(startOfDay, endOfDay, optimizedBatchSize, lastProcessedId);
+            
+            if (chunk.isEmpty()) {
+                break;
+            }
+            
+            // 해당 날짜의 모든 데이터를 수집
+            targetDateLogs.addAll(chunk);
+            totalProcessed += chunk.size();
+            lastProcessedId = chunk.get(chunk.size() - 1).getId();
+            
+            log.info("청크 처리 완료 - 청크 크기: {}, 누적 처리 건수: {}", chunk.size(), totalProcessed);
+        }
+        
+        if (!targetDateLogs.isEmpty()) {
+            try {
+                log.info("날짜 {} 데이터 아카이빙 시작 - 건수: {}", targetDate, targetDateLogs.size());
+                
+                // 해당 날짜 데이터를 하나의 파일로 저장
+                storage.store(targetDateLogs, targetDate);
+                
+                // 아카이브 메타데이터 저장
+                saveArchiveMetadata(policy, targetDateLogs, storage, targetDate);
+                
+                totalArchived = targetDateLogs.size();
+                
+                // 데이터 삭제 (정책에 따라)
+                if (policy.getRetentionRule().isEnableDataDeletion()) {
+                    try {
+                        var deletedCount = deleteDataByDate(targetDateLogs);
+                        totalDeleted = deletedCount;
+                        log.info("날짜 {} - 데이터 삭제 완료: {}건", targetDate, deletedCount);
+                    } catch (Exception e) {
+                        log.error("날짜 {} - 데이터 삭제 실패: {}건", targetDate, targetDateLogs.size(), e);
+                        // 삭제 실패해도 아카이빙은 성공으로 처리
+                    }
+                }
+                
+                log.info("날짜 {} 아카이빙 완료 - Processed: {}, Archived: {}, Deleted: {}", 
+                        targetDate, totalProcessed, totalArchived, totalDeleted);
+                
+            } catch (Exception e) {
+                log.error("날짜 {} 데이터 아카이빙 실패. 건수: {}", targetDate, targetDateLogs.size(), e);
+                throw new RuntimeException("특정 날짜 아카이빙 실패", e);
+            }
+        } else {
+            log.info("날짜 {}에 해당하는 데이터가 없습니다.", targetDate);
+        }
         
         return new ProcessResult(totalProcessed, totalArchived, totalDeleted);
     }

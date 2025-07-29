@@ -1,24 +1,24 @@
 package com.baro13.readfast.global.datasource;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-
-import javax.sql.DataSource;
+import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DataSourceMonitor {
 
-    private final DataSource masterDataSource;
-    private final DataSource slaveDataSource;
+    private final HikariDataSource masterDataSource;
+    private final HikariDataSource slaveDataSource;
 
     private final AtomicInteger masterFailureCount = new AtomicInteger(0);
     private final AtomicInteger slaveFailureCount = new AtomicInteger(0);
@@ -26,7 +26,7 @@ public class DataSourceMonitor {
     /**
      * 5분마다 데이터소스 연결 상태 모니터링
      */
-    @Scheduled(fixedRate = 300000) // 5분
+    @Scheduled(fixedRate = 15000) // 15초
     public void monitorDataSources() {
         checkMasterDataSource();
         checkSlaveDataSource();

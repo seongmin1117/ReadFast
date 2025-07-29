@@ -3,10 +3,13 @@ package com.baro13.readfast.admin.authlog.adapter.out.archive.storage;
 import com.baro13.readfast.admin.authlog.adapter.out.archive.cache.ArchiveCache;
 import com.baro13.readfast.admin.authlog.adapter.out.archive.compression.CompressionFactory;
 import com.baro13.readfast.admin.authlog.domain.model.AuthLog;
+import com.baro13.readfast.admin.authlog.domain.model.ArchiveMetadata;
+import com.baro13.readfast.admin.authlog.domain.port.ArchiveMetadataRepository;
 import com.baro13.readfast.admin.authlog.domain.port.DataRetentionPolicyProvider;
 import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.ArchiveFormat;
 import com.baro13.readfast.admin.policy.domain.model.vo.ArchivingStrategy.CompressionType;
 import com.baro13.readfast.global.common.DateTimeUtils;
+import com.baro13.readfast.global.common.TimeZoneConstants;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -43,9 +46,10 @@ public class OptimizedSqliteStorage implements Storage {
     private final DataRetentionPolicyProvider policyProvider;
     private final CompressionFactory compressionFactory;
     private final ArchiveCache archiveCache;
+    private final ArchiveMetadataRepository archiveMetadataRepository;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final DateTimeFormatter DATE_DIR = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    private static final DateTimeFormatter DATE_DIR = DateTimeFormatter.ofPattern("yyyy/MM");
 
     private static final String CREATE_TABLE_SQL = """
         CREATE TABLE IF NOT EXISTS auth_log (
@@ -249,27 +253,40 @@ public class OptimizedSqliteStorage implements Storage {
      */
     private List<AuthLog> loadFromFileSystem(LocalDate date) {
         var dbPath = getDbPath(date);
-        var compressedPath = getCompressedPath(dbPath);
         
         try {
-            // 압축된 파일이 존재하는 경우
-            if (Files.exists(compressedPath)) {
-                log.debug("압축된 파일에서 로드: {}", compressedPath);
-                byte[] compressedData = Files.readAllBytes(compressedPath);
+            // 파일이 존재하는지 확인
+            if (Files.exists(dbPath)) {
+                var fileName = dbPath.getFileName().toString();
                 
-                // 압축된 데이터 캐시 저장
-                archiveCache.putCompressed(date, compressedData);
-                
-                // 인메모리 처리
-                List<AuthLog> data = processCompressedDataInMemory(compressedData, date);
-                archiveCache.putDecompressed(date, data);
-                return data;
+                // 압축된 파일인지 확인 (.gz, .zip 등)
+                if (fileName.endsWith(".gz") || fileName.endsWith(".zip")) {
+                    log.debug("압축된 파일에서 로드: {}", dbPath);
+                    byte[] compressedData = Files.readAllBytes(dbPath);
+                    
+                    // 압축된 데이터 캐시 저장
+                    archiveCache.putCompressed(date, compressedData);
+                    
+                    // 인메모리 처리
+                    List<AuthLog> data = processCompressedDataInMemory(compressedData, date);
+                    archiveCache.putDecompressed(date, data);
+                    return data;
+                } else {
+                    // 압축되지 않은 파일
+                    log.debug("비압축 파일에서 로드: {}", dbPath);
+                    List<AuthLog> data = loadFromSqliteFile(dbPath, date);
+                    archiveCache.putDecompressed(date, data);
+                    return data;
+                }
             }
             
-            // 압축되지 않은 파일이 존재하는 경우
-            if (Files.exists(dbPath)) {
-                log.debug("비압축 파일에서 로드: {}", dbPath);
-                List<AuthLog> data = loadFromSqliteFile(dbPath, date);
+            // 기존 방식으로 fallback 시도 (메타데이터에 경로가 없는 경우)
+            var compressedPath = getCompressedPath(dbPath);
+            if (Files.exists(compressedPath)) {
+                log.debug("기본 압축 경로에서 로드: {}", compressedPath);
+                byte[] compressedData = Files.readAllBytes(compressedPath);
+                archiveCache.putCompressed(date, compressedData);
+                List<AuthLog> data = processCompressedDataInMemory(compressedData, date);
                 archiveCache.putDecompressed(date, data);
                 return data;
             }
@@ -284,35 +301,38 @@ public class OptimizedSqliteStorage implements Storage {
     }
 
     /**
-     * 압축된 데이터를 인메모리에서 처리 (임시 파일 생성 없음)
+     * 압축된 데이터를 임시 파일을 통해 처리 (실용적인 구현)
      */
     private List<AuthLog> processCompressedDataInMemory(byte[] compressedData, LocalDate date) {
+        Path tempFile = null;
         try {
             // 압축 해제
             var compression = compressionFactory.resolve();
             byte[] originalData = compression.decompress(compressedData);
             
-            // 인메모리 SQLite 처리
-            String memoryUrl = "jdbc:sqlite::memory:";
+            // 임시 SQLite 파일 생성
+            tempFile = Files.createTempFile("sqlite-temp-" + date, ".db");
+            Files.write(tempFile, originalData);
             
-            try (var connection = DriverManager.getConnection(memoryUrl)) {
-                configureConnection(connection);
-                initializeDatabase(connection);
-                
-                // 인메모리 DB에 데이터 로드 (바이트 배열에서)
-                loadDataIntoMemoryDb(connection, originalData);
-                
-                // 쿼리 실행하여 데이터 조회
-                return queryDataFromMemoryDb(connection, date);
-                
-            } catch (SQLException e) {
-                log.error("인메모리 SQLite 처리 실패. 날짜: {}", date, e);
-                throw new RuntimeException("인메모리 SQLite 처리 중 오류 발생", e);
-            }
+            // 임시 파일에서 데이터 로드
+            List<AuthLog> result = loadFromSqliteFile(tempFile, date);
+            
+            log.debug("압축된 데이터 처리 완료. 날짜: {}, 레코드: {}", date, result.size());
+            return result;
             
         } catch (IOException e) {
-            log.error("압축 해제 실패. 날짜: {}", date, e);
-            throw new RuntimeException("압축 해제 중 오류 발생", e);
+            log.error("압축 해제 또는 임시 파일 처리 실패. 날짜: {}", date, e);
+            throw new RuntimeException("압축된 데이터 처리 중 오류 발생", e);
+        } finally {
+            // 임시 파일 정리
+            if (tempFile != null && Files.exists(tempFile)) {
+                try {
+                    Files.delete(tempFile);
+                    log.debug("임시 SQLite 파일 정리 완료: {}", tempFile);
+                } catch (IOException e) {
+                    log.warn("임시 SQLite 파일 정리 실패: {}", tempFile, e);
+                }
+            }
         }
     }
 
@@ -342,45 +362,45 @@ public class OptimizedSqliteStorage implements Storage {
         }
     }
 
-    /**
-     * 바이트 배열을 인메모리 DB에 로드 (SQLite의 .read 명령 대체)
-     * 실제로는 임시 파일이 필요할 수 있으므로, 실제 구현에서는 다른 방식 고려
-     */
-    private void loadDataIntoMemoryDb(Connection connection, byte[] sqliteData) throws SQLException {
-        // 실제 구현에서는 SQLite의 backup API나 다른 방식을 사용해야 할 수 있음
-        // 여기서는 단순화된 구현
-        log.debug("인메모리 DB로 데이터 로드: {}bytes", sqliteData.length);
-        // TODO: 실제 SQLite 데이터 로드 구현
-    }
-
-    /**
-     * 인메모리 DB에서 데이터 조회
-     */
-    private List<AuthLog> queryDataFromMemoryDb(Connection connection, LocalDate date) throws SQLException {
-        var datePrefix = date.format(DATE_FORMATTER);
-        var authLogs = new ArrayList<AuthLog>();
-        
-        try (var statement = connection.prepareStatement(SELECT_BY_DATE_SQL)) {
-            statement.setString(1, datePrefix + "%");
-            
-            try (var resultSet = statement.executeQuery()) {
-                while (resultSet.next()) {
-                    authLogs.add(mapToAuthLog(resultSet));
-                }
-            }
-        }
-        
-        log.debug("인메모리 DB에서 조회 완료. 날짜: {}, 건수: {}", date, authLogs.size());
-        return authLogs;
-    }
 
     // 기존 유틸리티 메서드들은 그대로 유지
     private Path getDbPath(LocalDate date) {
+        // 1단계: 메타데이터에서 실제 경로 확인
+        try {
+            var startOfDay = date.atStartOfDay(TimeZoneConstants.APPLICATION_ZONE).toInstant();
+            var endOfDay = date.atTime(23, 59, 59).atZone(TimeZoneConstants.APPLICATION_ZONE).toInstant();
+            
+            var metadata = archiveMetadataRepository.findByDateRange(startOfDay, endOfDay)
+                .stream()
+                .filter(meta -> "sqlite".equals(meta.getStorageType()))
+                .findFirst();
+                
+            if (metadata.isPresent()) {
+                var metadataPath = metadata.get().getFilePath();
+                log.debug("메타데이터에서 경로 찾음: {}", metadataPath);
+                
+                // 상대 경로인 경우 절대 경로로 변환
+                if (metadataPath.startsWith("./")) {
+                    return Paths.get(System.getProperty("user.dir"), metadataPath.substring(2));
+                } else if (!Paths.get(metadataPath).isAbsolute()) {
+                    var archiveBasePath = policyProvider.getCurrentPolicy()
+                        .getArchivingStrategy()
+                        .getArchiveBasePath();
+                    return Paths.get(archiveBasePath).resolve(metadataPath);
+                } else {
+                    return Paths.get(metadataPath);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("메타데이터에서 경로 조회 실패, 기본 경로 사용: {}", e.getMessage());
+        }
+        
+        // 2단계: 기본 경로 생성 (BatchExecutionImpl과 동일한 구조)
         var archiveBasePath = policyProvider.getCurrentPolicy()
             .getArchivingStrategy()
             .getArchiveBasePath();
 
-        var dateDir = date.format(DATE_DIR);
+        var dateDir = date.format(DATE_DIR); // yyyy/MM 형식
         var fileName = date.format(DATE_FORMATTER) + ".sqlite";
         
         return Paths.get(archiveBasePath, dateDir, fileName);
@@ -391,12 +411,19 @@ public class OptimizedSqliteStorage implements Storage {
             Class.forName("org.sqlite.JDBC");
             
             Path normalizedPath = dbPath.toAbsolutePath().normalize();
-            Path archiveBase = Paths.get(policyProvider.getCurrentPolicy().getArchivingStrategy().getArchiveBasePath())
-                .toAbsolutePath()
-                .normalize();
+            
+            // 임시 파일인지 확인 (압축 해제를 위한 임시 SQLite 파일)
+            boolean isTempFile = normalizedPath.toString().contains("sqlite-temp-");
+            
+            if (!isTempFile) {
+                // 일반 파일인 경우에만 경로 보안 검사
+                Path archiveBase = Paths.get(policyProvider.getCurrentPolicy().getArchivingStrategy().getArchiveBasePath())
+                    .toAbsolutePath()
+                    .normalize();
 
-            if (!normalizedPath.startsWith(archiveBase)) {
-                throw new SQLException("Invalid database path: path traversal detected");
+                if (!normalizedPath.startsWith(archiveBase)) {
+                    throw new SQLException("Invalid database path: path traversal detected");
+                }
             }
             
             var url = "jdbc:sqlite:" + normalizedPath.toString();
@@ -512,5 +539,45 @@ public class OptimizedSqliteStorage implements Storage {
             .getCompressionType();
         
         return Paths.get(originalPath.toString() + compressionType.getExtension());
+    }
+
+    /**
+     * 임시 파일 정리 - 2시간 이상 된 SQLite 임시 파일들을 정리
+     */
+    public void cleanupOldTemporaryFiles() {
+        try {
+            Path tempDir = Paths.get(System.getProperty("java.io.tmpdir"));
+            long cutoffTime = System.currentTimeMillis() - (2 * 60 * 60 * 1000); // 2시간 전
+            
+            var deletedCount = Files.list(tempDir)
+                .filter(path -> path.getFileName().toString().startsWith("sqlite-temp-"))
+                .filter(path -> path.getFileName().toString().endsWith(".db"))
+                .filter(path -> {
+                    try {
+                        return Files.getLastModifiedTime(path).toMillis() < cutoffTime;
+                    } catch (IOException e) {
+                        log.debug("임시 파일 수정 시간 확인 실패: {}", path, e);
+                        return false;
+                    }
+                })
+                .peek(path -> {
+                    try {
+                        Files.delete(path);
+                        log.debug("오래된 SQLite 임시 파일 삭제: {}", path);
+                    } catch (IOException e) {
+                        log.warn("SQLite 임시 파일 삭제 실패: {}", path, e);
+                    }
+                })
+                .count();
+                
+            if (deletedCount > 0) {
+                log.info("SQLite 임시 파일 정리 완료: {}개 삭제", deletedCount);
+            } else {
+                log.debug("정리할 SQLite 임시 파일이 없습니다");
+            }
+            
+        } catch (IOException e) {
+            log.error("SQLite 임시 파일 정리 중 오류 발생", e);
+        }
     }
 }

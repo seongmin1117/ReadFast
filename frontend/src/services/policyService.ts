@@ -7,11 +7,52 @@ import type {
 
 export class PolicyService {
   /**
+   * 백엔드 응답을 프론트엔드 타입으로 변환
+   */
+  private static transformBackendPolicy(backendPolicy: any): DataRetentionPolicy {
+    return {
+      id: backendPolicy.policyId,
+      name: `데이터 보존 정책 ${backendPolicy.policyId}`, // 백엔드에 name 필드 없음
+      dbRetentionDays: backendPolicy.retentionRule.dbRetentionDays,
+      totalRetentionDays: backendPolicy.retentionRule.totalRetentionDays,
+      batchSize: backendPolicy.retentionRule.batchSize,
+      archiveBasePath: backendPolicy.archivingStrategy.archiveBasePath,
+      archiveFileFormat: 'yyyy-MM-dd', // 기본값
+      enableArchiving: true, // 기본값 (백엔드에서 제공하지 않음)
+      enableDataDeletion: backendPolicy.retentionRule.enableDataDeletion,
+      cronExpression: '0 0 2 * * ?', // 매일 새벽 2시 기본값
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+
+  /**
+   * 프론트엔드 요청을 백엔드 형식으로 변환
+   */
+  private static transformToBackendRequest(request: UpdatePolicyRequest): any {
+    return {
+      // name 필드는 백엔드에서 지원하지 않음
+      retentionRule: {
+        dbRetentionDays: request.dbRetentionDays,
+        totalRetentionDays: request.totalRetentionDays,
+        batchSize: request.batchSize,
+        enableDataDeletion: request.enableDataDeletion,
+      },
+      archivingStrategy: {
+        archiveBasePath: request.archiveBasePath,
+        archiveFormat: 'SQLITE', // 고정값
+        compressionType: 'GZIP', // 고정값
+      },
+      // cronExpression은 백엔드에서 아직 지원하지 않음
+    };
+  }
+
+  /**
    * 정책 조회
    */
   static async getPolicy(policyId: number): Promise<DataRetentionPolicy> {
-    const response = await ApiService.get<DataRetentionPolicy>(`/v1/policies/${policyId}`);
-    return response.data;
+    const response = await ApiService.get<any>(`/v1/policies/${policyId}`);
+    return this.transformBackendPolicy(response.data);
   }
 
   /**
@@ -28,11 +69,12 @@ export class PolicyService {
     policyId: number, 
     request: UpdatePolicyRequest
   ): Promise<DataRetentionPolicy> {
-    const response = await ApiService.put<DataRetentionPolicy>(
+    const backendRequest = this.transformToBackendRequest(request);
+    const response = await ApiService.put<any>(
       `/v1/policies/${policyId}`,
-      request
+      backendRequest
     );
-    return response.data;
+    return this.transformBackendPolicy(response.data);
   }
 
   /**
