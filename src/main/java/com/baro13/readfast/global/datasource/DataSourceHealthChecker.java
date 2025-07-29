@@ -1,13 +1,12 @@
 package com.baro13.readfast.global.datasource;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Map;
+import javax.sql.DataSource;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
@@ -68,6 +67,14 @@ public class DataSourceHealthChecker {
      * 개별 데이터소스 상태 체크
      */
     public Map<String, Object> getDataSourceStatus() {
-        return health();
+        boolean masterHealthy = checkDataSourceHealth(masterDataSource, "master");
+        boolean slaveHealthy = checkDataSourceHealth(slaveDataSource, "slave");
+
+        return Map.of(
+            "masterAvailable", masterHealthy,
+            "slaveAvailable", slaveHealthy,
+            "failureCount", (!masterHealthy || !slaveHealthy) ? 1 : 0,
+            "lastUpdate", java.time.Instant.now().toString()
+        );
     }
 }

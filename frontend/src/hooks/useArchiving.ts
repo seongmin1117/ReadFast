@@ -19,6 +19,7 @@ interface UseArchivingReturn {
   
   // Actions
   executeArchiving: () => Promise<ArchivingResult | null>;
+  executeArchivingByDate: (targetDate: string) => Promise<ArchivingResult | null>;
   pauseArchiving: () => Promise<void>;
   resumeArchiving: () => Promise<void>;
   refreshStatus: () => Promise<void>;
@@ -78,6 +79,29 @@ export function useArchiving(): UseArchivingReturn {
     }
   }, [refreshStatus]);
 
+  // 날짜 지정 아카이빙 실행
+  const executeArchivingByDate = useCallback(async (targetDate: string): Promise<ArchivingResult | null> => {
+    try {
+      setIsExecuting(true);
+      setExecutionError(null);
+      
+      const result = await ArchivingService.executeArchivingBatchByDate(targetDate);
+      setLastExecutionResult(result);
+      
+      // 실행 후 상태 새로고침
+      setTimeout(refreshStatus, 1000);
+      
+      return result;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : '날짜 지정 아카이빙 실행 중 오류가 발생했습니다.';
+      setExecutionError(errorMessage);
+      console.error('Failed to execute archiving by date:', err);
+      return null;
+    } finally {
+      setIsExecuting(false);
+    }
+  }, [refreshStatus]);
+
   // 아카이빙 일시 중지
   const pauseArchiving = useCallback(async () => {
     try {
@@ -120,6 +144,7 @@ export function useArchiving(): UseArchivingReturn {
     
     // Actions
     executeArchiving,
+    executeArchivingByDate,
     pauseArchiving,
     resumeArchiving,
     refreshStatus,

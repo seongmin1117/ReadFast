@@ -1,15 +1,14 @@
 package com.baro13.readfast.global.datasource;
 
 import com.baro13.readfast.global.response.ApiResponse;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-
 @RestController
-@RequestMapping("/api/datasource")
+@RequestMapping("/api/admin/datasource")
 @RequiredArgsConstructor
 public class DataSourceStatusController {
 

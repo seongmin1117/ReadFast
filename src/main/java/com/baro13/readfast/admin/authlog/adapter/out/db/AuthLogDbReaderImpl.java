@@ -49,4 +49,10 @@ public class AuthLogDbReaderImpl implements AuthLogDbReader {
     public long countOlderThan(LocalDateTime cutoffDate) {
         return archiveRepository.countOlderThan(cutoffDate);
     }
+    
+    @Override
+    @LogQueryTime("ArchiveDateRange")
+    public List<AuthLog> findByDateRange(LocalDateTime startDate, LocalDateTime endDate, int batchSize, Long lastProcessedId) {
+        return archiveRepository.findByDateRange(startDate, endDate, batchSize, lastProcessedId);
+    }
 }

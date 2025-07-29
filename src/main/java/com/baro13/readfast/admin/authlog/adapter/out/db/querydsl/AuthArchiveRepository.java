@@ -100,4 +100,36 @@ public class AuthArchiveRepository {
                 .where(authLogEntity.date.lt(cutoffInstant))
                 .fetchCount();
     }
+    
+    /**
+     * 특정 날짜 범위의 인증 로그 조회 (날짜별 아카이빙용 - MASTER DB 전용)
+     * 
+     * @param startDate 시작 날짜
+     * @param endDate 종료 날짜
+     * @param batchSize 배치 크기
+     * @param lastProcessedId 마지막 처리된 ID (커서)
+     * @return 조회된 인증 로그 리스트
+     */
+    @Transactional(readOnly = false) // Master DB에서 조회 (배치 작업용)
+    public List<AuthLog> findByDateRange(LocalDateTime startDate, LocalDateTime endDate, int batchSize, Long lastProcessedId) {
+        var startInstant = startDate.toInstant(ZoneOffset.UTC);
+        var endInstant = endDate.toInstant(ZoneOffset.UTC);
+        
+        var query = queryFactory.selectFrom(authLogEntity)
+                .where(authLogEntity.date.goe(startInstant)
+                       .and(authLogEntity.date.loe(endInstant)));
+        
+        // 커서가 있는 경우 해당 ID보다 큰 것만 조회
+        if (lastProcessedId != null) {
+            query = query.where(authLogEntity.id.gt(lastProcessedId));
+        }
+        
+        return query
+                .orderBy(authLogEntity.id.asc()) // ID 순으로 정렬하여 일관된 순서 보장
+                .limit(batchSize)
+                .fetch()
+                .stream()
+                .map(AuthLogMapper::toDomain)
+                .toList();
+    }
 }

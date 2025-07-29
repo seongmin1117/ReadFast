@@ -1,7 +1,7 @@
 package com.baro13.readfast.admin.authlog.adapter.in.scheduler;
 
 import com.baro13.readfast.admin.authlog.adapter.out.archive.cache.ArchiveCache;
-import com.baro13.readfast.admin.authlog.adapter.out.archive.storage.SqliteStorage;
+import com.baro13.readfast.admin.authlog.adapter.out.archive.storage.OptimizedSqliteStorage;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 public class CacheMaintenanceScheduler {
 
     private final ArchiveCache archiveCache;
-    private final Optional<SqliteStorage> sqliteStorage;
+    private final Optional<OptimizedSqliteStorage> sqliteStorage;
 
     /**
      * 캐시 정리 작업 - 매 30분마다 실행

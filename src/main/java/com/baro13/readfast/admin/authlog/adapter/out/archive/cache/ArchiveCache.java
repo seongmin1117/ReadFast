@@ -6,6 +6,7 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -119,7 +120,9 @@ public class ArchiveCache {
     /**
      * 캐시 통계 정보를 담는 클래스
      */
+    @Getter
     public static class CacheStatistics {
+
         private final long decompressedCacheSize;
         private final long compressedCacheSize;
         private final double decompressedHitRate;
@@ -139,14 +142,6 @@ public class ArchiveCache {
         public static Builder builder() {
             return new Builder();
         }
-
-        // Getters
-        public long getDecompressedCacheSize() { return decompressedCacheSize; }
-        public long getCompressedCacheSize() { return compressedCacheSize; }
-        public double getDecompressedHitRate() { return decompressedHitRate; }
-        public double getCompressedHitRate() { return compressedHitRate; }
-        public long getDecompressedEvictionCount() { return decompressedEvictionCount; }
-        public long getCompressedEvictionCount() { return compressedEvictionCount; }
 
         public static class Builder {
             private long decompressedCacheSize;

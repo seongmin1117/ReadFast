@@ -22,8 +22,7 @@ public class DataSourceConfig {
     }
 
     @Bean
-    @ConfigurationProperties("spring.datasource.master.hikari")
-    public DataSource masterDataSource() {
+    public HikariDataSource masterDataSource() {
         return masterDataSourceProperties()
             .initializeDataSourceBuilder()
             .type(HikariDataSource.class)
@@ -37,13 +36,13 @@ public class DataSourceConfig {
     }
 
     @Bean
-    @ConfigurationProperties("spring.datasource.slave.hikari")
-    public DataSource slaveDataSource() {
+    public HikariDataSource slaveDataSource() {
         return slaveDataSourceProperties()
             .initializeDataSourceBuilder()
             .type(HikariDataSource.class)
             .build();
     }
+
 
     @Bean
     @Primary

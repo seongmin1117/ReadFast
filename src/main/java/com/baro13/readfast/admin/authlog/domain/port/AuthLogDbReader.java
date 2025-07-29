@@ -51,4 +51,15 @@ public interface AuthLogDbReader {
      * @return 조회된 레코드 수
      */
     long countOlderThan(LocalDateTime cutoffDate);
+    
+    /**
+     * 특정 날짜 범위의 인증 로그 조회 (날짜별 아카이빙용)
+     * 
+     * @param startDate 시작 날짜
+     * @param endDate 종료 날짜
+     * @param batchSize 배치 크기
+     * @param lastProcessedId 마지막 처리된 ID (커서)
+     * @return 조회된 인증 로그 리스트
+     */
+    List<AuthLog> findByDateRange(LocalDateTime startDate, LocalDateTime endDate, int batchSize, Long lastProcessedId);
 }

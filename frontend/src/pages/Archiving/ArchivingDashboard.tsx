@@ -5,10 +5,11 @@ import {
   Database,
   Clock,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  Calendar
 } from 'lucide-react';
 import { PageContainer, Card } from '@/components/layout';
-import { Button } from '@/components/ui';
+import { Button, Input } from '@/components/ui';
 import { useArchiving, useArchivingStats } from '@/hooks/useArchiving';
 import { 
   formatNumber, 
@@ -21,12 +22,19 @@ import { cn } from '@/utils/cn.utils';
 
 export const ArchivingDashboard: React.FC = () => {
   const [showExecuteConfirm, setShowExecuteConfirm] = useState(false);
+  const [showDateExecuteModal, setShowDateExecuteModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    today.setDate(today.getDate() - 1); // 어제 날짜를 기본값으로
+    return today.toISOString().split('T')[0];
+  });
   
   const {
     status,
     isLoadingStatus,
     statusError,
     executeArchiving,
+    executeArchivingByDate,
     pauseArchiving,
     resumeArchiving,
     refreshStatus,
@@ -47,6 +55,19 @@ export const ArchivingDashboard: React.FC = () => {
   const handleExecuteArchiving = async () => {
     setShowExecuteConfirm(false);
     const result = await executeArchiving();
+    
+    if (result?.success) {
+      // 통계 새로고침
+      setTimeout(() => {
+        refreshStats();
+      }, 2000);
+    }
+  };
+
+  // 날짜 지정 아카이빙 실행
+  const handleExecuteArchivingByDate = async () => {
+    setShowDateExecuteModal(false);
+    const result = await executeArchivingByDate(selectedDate);
     
     if (result?.success) {
       // 통계 새로고침
@@ -81,6 +102,15 @@ export const ArchivingDashboard: React.FC = () => {
             loading={isLoadingStatus}
           >
             상태 새로고침
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowDateExecuteModal(true)}
+            loading={isExecuting}
+            disabled={status?.isRunning}
+            leftIcon={<Calendar className="w-4 h-4" />}
+          >
+            날짜 지정 실행
           </Button>
           <Button
             onClick={() => setShowExecuteConfirm(true)}
@@ -412,6 +442,42 @@ export const ArchivingDashboard: React.FC = () => {
               <Button
                 onClick={handleExecuteArchiving}
                 loading={isExecuting}
+              >
+                실행
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 날짜 지정 실행 모달 */}
+      {showDateExecuteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+            <h3 className="text-lg font-semibold mb-4">날짜 지정 아카이빙</h3>
+            <div className="mb-4">
+              <Input
+                label="아카이빙 대상 날짜"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                helperText="지정한 날짜의 데이터를 아카이빙합니다"
+              />
+            </div>
+            <p className="text-gray-600 mb-6">
+              {selectedDate}의 데이터를 아카이빙하시겠습니까?
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDateExecuteModal(false)}
+              >
+                취소
+              </Button>
+              <Button
+                onClick={handleExecuteArchivingByDate}
+                loading={isExecuting}
+                leftIcon={<Calendar className="w-4 h-4" />}
               >
                 실행
               </Button>

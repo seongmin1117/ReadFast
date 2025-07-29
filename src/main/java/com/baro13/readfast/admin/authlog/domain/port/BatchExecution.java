@@ -1,6 +1,7 @@
 package com.baro13.readfast.admin.authlog.domain.port;
 
 import com.baro13.readfast.admin.policy.domain.model.DataRetentionPolicy;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
@@ -13,6 +14,11 @@ public interface BatchExecution {
      * 아카이빙 배치 실행
      */
     BatchExecutionResult executeArchivingBatch(DataRetentionPolicy policy);
+    
+    /**
+     * 특정 날짜의 데이터를 아카이빙하는 배치 실행
+     */
+    BatchExecutionResult executeArchivingBatchByDate(DataRetentionPolicy policy, LocalDate targetDate);
 
     record BatchExecutionResult(
             boolean success,

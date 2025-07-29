@@ -1,7 +1,7 @@
 package com.baro13.readfast.admin.authlog.adapter.in.controller;
 
 import com.baro13.readfast.admin.authlog.adapter.out.archive.cache.ArchiveCache;
-import com.baro13.readfast.admin.authlog.adapter.out.archive.storage.SqliteStorage;
+import com.baro13.readfast.admin.authlog.adapter.out.archive.storage.OptimizedSqliteStorage;
 import com.baro13.readfast.global.response.ApiResponse;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class CacheMonitoringController {
 
     private final ArchiveCache archiveCache;
-    private final Optional<SqliteStorage> sqliteStorage;
+    private final Optional<OptimizedSqliteStorage> sqliteStorage;
 
     @GetMapping("/statistics")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getCacheStatistics() {

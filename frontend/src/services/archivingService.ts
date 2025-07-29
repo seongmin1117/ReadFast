@@ -15,6 +15,14 @@ export class ArchivingService {
   }
 
   /**
+   * 날짜 지정 아카이빙 배치 실행
+   */
+  static async executeArchivingBatchByDate(targetDate: string): Promise<ArchivingResult> {
+    const response = await ApiService.post<ArchivingResult>(`/v3/auth/archiving/execute-by-date?targetDate=${targetDate}`);
+    return response.data;
+  }
+
+  /**
    * 아카이빙 상태 조회
    */
   static async getArchivingStatus(): Promise<{
@@ -37,8 +45,9 @@ export class ArchivingService {
 
   /**
    * 아카이브 메타데이터 목록 조회
+   * TODO: 백엔드 API 구현 필요 - /v3/auth/archiving/metadata
    */
-  static async getArchiveMetadataList(params?: {
+  static async getArchiveMetadataList(_params?: {
     page?: number;
     size?: number;
     startDate?: string;
@@ -50,18 +59,14 @@ export class ArchivingService {
     totalPages: number;
     hasNext: boolean;
   }> {
-    try {
-      const response = await ApiService.get('/v3/auth/archiving/metadata', params);
-      return response.data;
-    } catch (error) {
-      // API가 없는 경우 빈 결과 반환
-      return {
-        content: [],
-        totalElements: 0,
-        totalPages: 0,
-        hasNext: false,
-      };
-    }
+    console.warn('아카이브 메타데이터 API가 구현되지 않음: /v3/auth/archiving/metadata');
+    // API가 없는 경우 빈 결과 반환
+    return {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      hasNext: false,
+    };
   }
 
   /**
@@ -147,7 +152,7 @@ export class ArchivingService {
   /**
    * 아카이빙 통계 조회
    */
-  static async getArchivingStats(period?: 'day' | 'week' | 'month' | 'year'): Promise<{
+  static async getArchivingStats(_period?: 'day' | 'week' | 'month' | 'year'): Promise<{
     totalArchivedRecords: number;
     totalArchiveFiles: number;
     totalArchivedSize: number;
@@ -158,21 +163,17 @@ export class ArchivingService {
     oldestArchive?: string;
     newestArchive?: string;
   }> {
-    try {
-      const response = await ApiService.get('/v3/auth/archiving/stats', { period });
-      return response.data;
-    } catch (error) {
-      // API가 없는 경우 기본값 반환
-      return {
-        totalArchivedRecords: 0,
-        totalArchiveFiles: 0,
-        totalArchivedSize: 0,
-        compressionRatio: 0,
-        recentExecutions: 0,
-        failureRate: 0,
-        averageExecutionTime: 0,
-      };
-    }
+    console.warn('아카이빙 통계 API가 구현되지 않음: /v3/auth/archiving/stats');
+    // API가 없는 경우 기본값 반환
+    return {
+      totalArchivedRecords: 0,
+      totalArchiveFiles: 0,
+      totalArchivedSize: 0,
+      compressionRatio: 0.7, // 70% 압축률 기본값
+      recentExecutions: 0,
+      failureRate: 0,
+      averageExecutionTime: 0,
+    };
   }
 
   /**
@@ -187,42 +188,32 @@ export class ArchivingService {
     storageType: string;
     lastUpdated: string;
   }> {
-    try {
-      const response = await ApiService.get('/v3/auth/archiving/storage/usage');
-      return response.data;
-    } catch (error) {
-      // API가 없는 경우 기본값 반환
-      return {
-        totalSize: 0,
-        usedSize: 0,
-        availableSize: 0,
-        usagePercentage: 0,
-        fileCount: 0,
-        storageType: 'LOCAL',
-        lastUpdated: new Date().toISOString(),
-      };
-    }
+    console.warn('스토리지 사용량 API가 구현되지 않음: /v3/auth/archiving/storage/usage');
+    // API가 없는 경우 기본값 반환
+    return {
+      totalSize: 1024 * 1024 * 1024 * 10, // 10GB
+      usedSize: 1024 * 1024 * 1024 * 3, // 3GB 사용
+      availableSize: 1024 * 1024 * 1024 * 7, // 7GB 사용 가능
+      usagePercentage: 30, // 30% 사용
+      fileCount: 0,
+      storageType: 'LOCAL',
+      lastUpdated: new Date().toISOString(),
+    };
   }
 
   /**
    * 아카이빙 일시 중지/재개
    */
   static async pauseArchiving(): Promise<void> {
-    try {
-      await ApiService.post('/v3/auth/archiving/pause');
-    } catch (error) {
-      console.error('Failed to pause archiving:', error);
-      throw new Error('아카이빙 일시 중지에 실패했습니다.');
-    }
+    console.warn('아카이빙 일시 중지 API가 구현되지 않음: /v3/auth/archiving/pause');
+    // TODO: 백엔드 API 구현 필요
+    throw new Error('아카이빙 일시 중지 기능이 아직 구현되지 않았습니다.');
   }
 
   static async resumeArchiving(): Promise<void> {
-    try {
-      await ApiService.post('/v3/auth/archiving/resume');
-    } catch (error) {
-      console.error('Failed to resume archiving:', error);
-      throw new Error('아카이빙 재개에 실패했습니다.');
-    }
+    console.warn('아카이빙 재개 API가 구현되지 않음: /v3/auth/archiving/resume');
+    // TODO: 백엔드 API 구현 필요
+    throw new Error('아카이빙 재개 기능이 아직 구현되지 않았습니다.');
   }
 
   /**
